@@ -1,7 +1,7 @@
 hour;minute;second;filename
 *;00;00;prepare_for_the_next_mission.m4a
-*;03;00;start_mission.m4a
+*;05;00;start_mission.m4a
 *;27;00;end_of_mission_please_clear_the_arena.m4a
 *;30;00;prepare_for_the_next_mission.m4a
-*;33;00;start_mission.m4a
+*;35;00;start_mission.m4a
 *;57;00;end_of_mission_please_clear_the_arena.m4a
