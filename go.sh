@@ -1,3 +1,3 @@
 #!/bin/bash
-python roboclock.py 2023-04-25_prelim.csv
+python roboclock.py 2023-07-05_prelim.csv
 
