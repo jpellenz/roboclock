@@ -94,7 +94,7 @@ def set_alarm(seconds, sound_filename, c_phase, next_time, n_phase):
 
 if __name__ == "__main__":
     threading.Thread(target=lambda: app.run(host=host_name, port=port, debug=True, use_reloader=False)).start()
-    # play("sounds/gong.mp3")
+    play("sounds/gong.mp3")
     sa = sys.argv
     lsa = len(sys.argv)
     if lsa != 2:
