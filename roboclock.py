@@ -10,7 +10,7 @@ import pandas as pd
 host_name = "127.0.0.1"
 port = 5000
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})  # CORS für alle Routen aktivieren
+CORS(app, resources={r"/*": {"origins": "*"}})  # Activate CORS for all routes
 
 countdown_time = datetime.now() + timedelta(minutes=5)
 current_phase = "---"
@@ -49,14 +49,13 @@ def read_csv_to_df(filename):
     df['second'] = df['second'].astype(int)
     today_str = datetime.today().strftime('%Y-%m-%d')
     df['time'] = pd.to_datetime(df[['hour', 'minute', 'second']].apply(lambda x: f'{today_str} {x[0]:02}:{x[1]:02}:{x[2]:02}', axis=1))
-    # Sort the DataFrame by the 'time' column
     df_sorted = df.sort_values(by='time')
+
     return df_sorted
 
 # Function to find the row closest to the current time (in the future)
 def find_future_time_row(df_sorted, current_time, offset):
     closest_time_row = df_sorted[df_sorted['time'].dt.time >= current_time].iloc[offset]
-
     return closest_time_row
 
 # Function to find the row closest to the current time (in the past)
@@ -103,22 +102,24 @@ if __name__ == "__main__":
 
         current_time = datetime.now().time()
         past_time_row = find_past_time_row(df_sorted, current_time)
-        future_time_row = find_future_time_row(df_sorted, current_time, 0)
-        future_future_time_row = find_future_time_row(df_sorted, current_time, 1)
+        next_time_row = find_future_time_row(df_sorted, current_time, 0)
+        future_time_row = find_future_time_row(df_sorted, current_time, 1)
+        # print ("past_time_row: ", past_time_row)
+        # print ("next_time_row: ", next_time_row)
+        # print ("future_time_row: ", future_time_row)
 
-        closest_future_time = future_time_row['time'].time()
+        closest_future_time = next_time_row['time'].time()
         time_difference = datetime.combine(datetime.today(), closest_future_time) - datetime.combine(datetime.today(), current_time)
         time_difference_seconds = time_difference.total_seconds()
-        next_time = datetime.combine(datetime.today(), future_time_row['time'].time())
+        next_time = datetime.combine(datetime.today(), next_time_row['time'].time())
 
         countdown_time = next_time
         current_phase = past_time_row['phase']
-        next_phase = future_time_row['phase']
+        next_phase = next_time_row['phase']
 
         if time_difference_seconds > 12:
             sleep(10)
         else:
-            set_alarm(time_difference_seconds, future_time_row['filename'],
-                    future_time_row['phase'],
-                    datetime.combine(datetime.today(), future_future_time_row['time'].time()),
-                    future_future_time_row['phase'],)
+            set_alarm(time_difference_seconds,
+                      next_time_row['filename'], next_time_row['phase'],
+                      datetime.combine(datetime.today(), future_time_row['time'].time()), future_time_row['phase'], )

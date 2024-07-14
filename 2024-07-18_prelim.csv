@@ -1,5 +1,4 @@
 hour;minute;second;filename;phase
-*;016;00;start_mission.m4a;Mobility mission running
 *;00;00;prepare_for_the_next_mission.m4a;Prepare for mission
 *;05;00;start_mission.m4a;Mobility mission running
 *;15;00;end_mobility_start_dexterity.aiff;Dexterity mission running
