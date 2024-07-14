@@ -7,8 +7,13 @@ from datetime import datetime, timedelta
 import threading
 import pandas as pd
 
-host_name = "127.0.0.1"
-port = 5000
+import logging
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.WARNING)
+
+# host_name = "127.0.0.1"
+host_name = "0.0.0.0"
+port = 5001
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})  # Activate CORS for all routes
 
@@ -22,7 +27,7 @@ def get_countdown():
     time_remaining = countdown_time - current_time
     if time_remaining.total_seconds() < 0:
         time_remaining = timedelta(seconds=0)
-    print("  Countdown time is %s in %s:%s (phase %s)." % (countdown_time, time_remaining.seconds // 60, time_remaining.seconds % 60, current_phase))
+    # print("  Countdown time is %s in %s:%s (phase %s)." % (countdown_time, time_remaining.seconds // 60, time_remaining.seconds % 60, current_phase))
     return jsonify({
         'minutes': time_remaining.seconds // 60,
         'seconds': time_remaining.seconds % 60,
@@ -48,7 +53,7 @@ def read_csv_to_df(filename):
     df['minute'] = df['minute'].astype(int)
     df['second'] = df['second'].astype(int)
     today_str = datetime.today().strftime('%Y-%m-%d')
-    df['time'] = pd.to_datetime(df[['hour', 'minute', 'second']].apply(lambda x: f'{today_str} {x[0]:02}:{x[1]:02}:{x[2]:02}', axis=1))
+    df['time'] = pd.to_datetime(df.apply(lambda row: f'{today_str} {row["hour"]:02}:{row["minute"]:02}:{row["second"]:02}', axis=1))
     df_sorted = df.sort_values(by='time')
 
     return df_sorted

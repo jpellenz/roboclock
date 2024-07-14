@@ -41,7 +41,7 @@
         function startCountdown() {
             function updateCountdown() {
                 const xhr = new XMLHttpRequest();
-                xhr.open('GET', 'http://127.0.0.1:5000/get_countdown', true);
+                xhr.open('GET', 'http://192.168.178.153:5001/get_countdown', true);
                 xhr.onload = function () {
                     if (xhr.status === 200) {
                         const response = JSON.parse(xhr.responseText);
@@ -57,7 +57,7 @@
                 xhr.send();
             }
             updateCountdown();
-            const intervalId = setInterval(updateCountdown, 500);
+            const intervalId = setInterval(updateCountdown, 200);
         }
     </script>
 </head>
