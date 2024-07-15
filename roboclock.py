@@ -24,6 +24,7 @@ next_phase = "---"
 @app.route('/get_countdown', methods=['GET'])
 def get_countdown():
     current_time = datetime.now()
+    mission_time_remaining = seconds_to_next_hour_or_half_hour (current_time)
     time_remaining = countdown_time - current_time
     if time_remaining.total_seconds() < 0:
         time_remaining = timedelta(seconds=0)
@@ -32,9 +33,19 @@ def get_countdown():
         'minutes': time_remaining.seconds // 60,
         'seconds': time_remaining.seconds % 60,
         'current_phase': current_phase,
-        'next_phase': next_phase
+        'next_phase': next_phase,
+        'remaining_mission_time_minutes' : mission_time_remaining // 60,
+        'remaining_mission_time_seconds': mission_time_remaining % 60
     })
 
+
+def seconds_to_next_hour_or_half_hour(now):
+    if now.minute < 30:
+        next_half_hour = now.replace(minute=30, second=0, microsecond=0)
+    else:
+        next_half_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+    seconds_to_half_hour = (next_half_hour - now).total_seconds()
+    return int (seconds_to_half_hour)
 
 def read_csv_to_df(filename):
     df = pd.read_csv(filename, delimiter=';')

@@ -36,6 +36,10 @@
             font-size: 3em;
             margin-top: 15px;
         }
+        #remaining_mission_time {
+            font-size: 3em;
+            margin-top: 15px;
+        }
     </style>
     <script>
         function startCountdown() {
@@ -49,9 +53,12 @@
                         const seconds = response.seconds;
                         const current_phase = response.current_phase;
                         const next_phase = response.next_phase;
+                        const remaining_mission_time_minutes = response.remaining_mission_time_minutes
+                        const remaining_mission_time_seconds = response.remaining_mission_time_seconds
                         document.getElementById('countdown').innerText = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
                         document.getElementById('current_phase').innerText = `${current_phase}`;
                         document.getElementById('next_phase').innerText = `(Next phase: ${next_phase})`;
+                        document.getElementById('remaining_mission_time').innerText = `(Next mission in ${remaining_mission_time_minutes}:${remaining_mission_time_seconds < 10 ? '0' : ''}${remaining_mission_time_seconds})`;
                     }
                 };
                 xhr.send();
@@ -67,5 +74,6 @@
     <div id="countdown">Loading...</div>
     <div id="current_phase">Loading...</div>
     <div id="next_phase">Loading...</div>
+    <div id="remaining_mission_time">Loading...</div>
 </body>
 </html>
