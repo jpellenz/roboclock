@@ -16,9 +16,23 @@
             background-color: #e0e0e0;
             text-align: center;
         }
+        header {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
         img {
-            max-width: 400px;
-            margin-bottom: 40px;
+            max-height: 150px; /* Adjusted size */
+        }
+        #qrcode {
+            width: 150px; /* Adjusted size */
+            height: 150px; /* Adjusted size */
         }
         h1 {
             font-size: 4em;
@@ -41,7 +55,10 @@
             margin-top: 15px;
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
+        let qrcode;
+
         function startCountdown() {
             function updateCountdown() {
                 const xhr = new XMLHttpRequest();
@@ -53,12 +70,28 @@
                         const seconds = response.seconds;
                         const current_phase = response.current_phase;
                         const next_phase = response.next_phase;
-                        const remaining_mission_time_minutes = response.remaining_mission_time_minutes
-                        const remaining_mission_time_seconds = response.remaining_mission_time_seconds
+                        const remaining_mission_time_minutes = response.remaining_mission_time_minutes;
+                        const remaining_mission_time_seconds = response.remaining_mission_time_seconds;
+                        const server_ip = response.server_ip;
+                        const full_url = `http://${server_ip}/static/index.html`;
+                        const next_half_hour = response.next_half_hour;
                         document.getElementById('countdown').innerText = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
                         document.getElementById('current_phase').innerText = `${current_phase}`;
                         document.getElementById('next_phase').innerText = `(Next phase: ${next_phase})`;
-                        document.getElementById('remaining_mission_time').innerText = `(Next mission in ${remaining_mission_time_minutes}:${remaining_mission_time_seconds < 10 ? '0' : ''}${remaining_mission_time_seconds})`;
+                        document.getElementById('remaining_mission_time').innerText = `(Next mission in ${remaining_mission_time_minutes}:${remaining_mission_time_seconds < 10 ? '0' : ''}${remaining_mission_time_seconds} at ${next_half_hour})`;
+
+                        // Update the QR code
+                        document.getElementById('server_ip').innerText = `Server IP: ${server_ip}`;
+                        if (qrcode) {
+                            qrcode.clear();
+                            qrcode.makeCode(full_url);
+                        } else {
+                            qrcode = new QRCode(document.getElementById("qrcode"), {
+                                text: full_url,
+                                width: 200,
+                                height: 200
+                            });
+                        }
                     }
                 };
                 xhr.send();
@@ -69,11 +102,15 @@
     </script>
 </head>
 <body onload="startCountdown()">
-    <img src="robo-logo-2024-for-green-bg-with-robin.png" alt="RoboCup 2024 Logo">
+    <header>
+        <img src="robo-logo-2024-for-green-bg-with-robin.png" alt="RoboCup 2024 Logo">
+        <div id="qrcode"></div>
+    </header>
     <h1>RoboCup Rescue</h1>
     <div id="countdown">Loading...</div>
     <div id="current_phase">Loading...</div>
     <div id="next_phase">Loading...</div>
     <div id="remaining_mission_time">Loading...</div>
+    <div id="server_ip">Loading...</div>
 </body>
 </html>

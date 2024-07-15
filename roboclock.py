@@ -6,6 +6,7 @@ from flask_cors import CORS
 from datetime import datetime, timedelta
 import threading
 import pandas as pd
+import socket
 
 import logging
 log = logging.getLogger('werkzeug')
@@ -20,6 +21,8 @@ CORS(app, resources={r"/*": {"origins": "*"}})  # Activate CORS for all routes
 countdown_time = datetime.now() + timedelta(minutes=5)
 current_phase = "---"
 next_phase = "---"
+server_ip = "---"
+next_half_hour = "00:00"
 
 @app.route('/get_countdown', methods=['GET'])
 def get_countdown():
@@ -35,11 +38,26 @@ def get_countdown():
         'current_phase': current_phase,
         'next_phase': next_phase,
         'remaining_mission_time_minutes' : mission_time_remaining // 60,
-        'remaining_mission_time_seconds': mission_time_remaining % 60
+        'remaining_mission_time_seconds': mission_time_remaining % 60,
+        'server_ip': server_ip,
+        'next_half_hour': next_half_hour.strftime("%H:%M")
     })
 
 
+def get_local_ip():
+    try:
+        # Connect to an external server to get the local IP address
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0)
+        s.connect(('1.1.1.1', 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+    except Exception as e:
+        local_ip = '127.0.0.1'  # Fall back to loopback address if an error occurs
+    return local_ip
+
 def seconds_to_next_hour_or_half_hour(now):
+    global next_half_hour
     if now.minute < 30:
         next_half_hour = now.replace(minute=30, second=0, microsecond=0)
     else:
@@ -104,6 +122,8 @@ def set_alarm(seconds, sound_filename, c_phase, next_time, n_phase):
 
 
 if __name__ == "__main__":
+    server_ip = get_local_ip()
+
     threading.Thread(target=lambda: app.run(host=host_name, port=port, debug=True, use_reloader=False)).start()
     play("sounds/gong.mp3")
     sa = sys.argv
