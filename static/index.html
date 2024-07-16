@@ -73,7 +73,7 @@
                         const remaining_mission_time_minutes = response.remaining_mission_time_minutes;
                         const remaining_mission_time_seconds = response.remaining_mission_time_seconds;
                         const server_ip = response.server_ip;
-                        const full_url = `http://${server_ip}/static/index.html`;
+                        const full_url = `http://${server_ip}:5001/static/index.html`;
                         const next_half_hour = response.next_half_hour;
                         document.getElementById('countdown').innerText = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
                         document.getElementById('current_phase').innerText = `${current_phase}`;
