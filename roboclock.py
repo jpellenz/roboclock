@@ -49,7 +49,7 @@ def get_local_ip():
         # Connect to an external server to get the local IP address
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.settimeout(0)
-        s.connect(('1.1.1.1', 80))
+        s.connect(('8.8.8.8', 80))
         local_ip = s.getsockname()[0]
         s.close()
     except Exception as e:
@@ -123,7 +123,7 @@ def set_alarm(seconds, sound_filename, c_phase, next_time, n_phase):
 
 if __name__ == "__main__":
     server_ip = get_local_ip()
-
+    print ("Server IP: ", server_ip)
     threading.Thread(target=lambda: app.run(host=host_name, port=port, debug=True, use_reloader=False)).start()
     play("sounds/gong.mp3")
     sa = sys.argv
