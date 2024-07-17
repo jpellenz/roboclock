@@ -88,7 +88,7 @@
                         } else {
                             remaining_mission_time_text = `${remaining_mission_time_minutes} min`;
                         }
-                        document.getElementById('remaining_mission_time').innerText = `(It's ${server_hour}:${server_minute}, next team starts in ${remaining_mission_time_text} at ${next_half_hour})`;
+                        document.getElementById('remaining_mission_time').innerText = `(It's ${server_hour}:${server_minute < 10 ? '0' : ''}${server_minute}, next team starts in ${remaining_mission_time_text} at ${next_half_hour})`;
                         // Update the QR code
                         document.getElementById('server_ip').innerText = `Server IP: ${server_ip}`;
                         if (qrcode) {
