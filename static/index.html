@@ -39,16 +39,18 @@
             margin-bottom: 20px;
         }
         #countdown {
+            font-weight: bold;
             font-size: 16em;
             margin-top: 20px;
         }
         #current_phase {
-            font-size: 6em;
-            margin-top: 20px;
+            font-weight: bold;
+            font-size: 8em;
+            margin-top: 0px;
         }
         #next_phase {
             font-size: 3em;
-            margin-top: 15px;
+            margin-top: 20px;
         }
         #remaining_mission_time {
             font-size: 3em;
@@ -66,6 +68,9 @@
                 xhr.onload = function () {
                     if (xhr.status === 200) {
                         const response = JSON.parse(xhr.responseText);
+                        const server_hour = response.server_hour;
+                        const server_minute = response.server_minute;
+                        const server_second = response.server_second;
                         const minutes = response.minutes;
                         const seconds = response.seconds;
                         const current_phase = response.current_phase;
@@ -77,9 +82,13 @@
                         const next_half_hour = response.next_half_hour;
                         document.getElementById('countdown').innerText = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
                         document.getElementById('current_phase').innerText = `${current_phase}`;
-                        document.getElementById('next_phase').innerText = `(Next phase: ${next_phase})`;
-                        document.getElementById('remaining_mission_time').innerText = `(Next mission in ${remaining_mission_time_minutes}:${remaining_mission_time_seconds < 10 ? '0' : ''}${remaining_mission_time_seconds} at ${next_half_hour})`;
-
+                        document.getElementById('next_phase').innerText = `Next task: ${next_phase}`;
+                        if (response.remaining_mission_time_minutes === 0) {
+                            remaining_mission_time_text = `${remaining_mission_time_seconds} s`;
+                        } else {
+                            remaining_mission_time_text = `${remaining_mission_time_minutes} min`;
+                        }
+                        document.getElementById('remaining_mission_time').innerText = `(It's ${server_hour}:${server_minute}, next team starts in ${remaining_mission_time_text} at ${next_half_hour})`;
                         // Update the QR code
                         document.getElementById('server_ip').innerText = `Server IP: ${server_ip}`;
                         if (qrcode) {

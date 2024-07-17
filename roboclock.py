@@ -33,6 +33,9 @@ def get_countdown():
         time_remaining = timedelta(seconds=0)
     # print("  Countdown time is %s in %s:%s (phase %s)." % (countdown_time, time_remaining.seconds // 60, time_remaining.seconds % 60, current_phase))
     return jsonify({
+        'server_hour': current_time.hour,
+        'server_minute': current_time.minute,
+        'server_second': current_time.second,
         'minutes': time_remaining.seconds // 60,
         'seconds': time_remaining.seconds % 60,
         'current_phase': current_phase,
