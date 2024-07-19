@@ -3,7 +3,7 @@ from time import sleep
 import subprocess
 from flask import Flask, jsonify
 from flask_cors import CORS
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 import threading
 import pandas as pd
 import socket
@@ -68,6 +68,15 @@ def seconds_to_next_hour_or_half_hour(now):
     seconds_to_half_hour = (next_half_hour - now).total_seconds()
     return int (seconds_to_half_hour)
 
+# Function to adjust the time if it's in the past
+def adjust_time(row, target_date_str, current_time):
+    combined_datetime_str = f'{target_date_str} {row["hour"]:02}:{row["minute"]:02}:{row["second"]:02}'
+    combined_datetime = pd.to_datetime(combined_datetime_str)
+    if combined_datetime < current_time:
+        # Add one day to the date
+        combined_datetime += timedelta(days=1)
+    return combined_datetime
+
 def read_csv_to_df(filename):
     df = pd.read_csv(filename, delimiter=';')
     # Iterate over rows with '*' and create new rows for each hour
@@ -84,8 +93,9 @@ def read_csv_to_df(filename):
     df['hour'] = df['hour'].astype(int)
     df['minute'] = df['minute'].astype(int)
     df['second'] = df['second'].astype(int)
-    today_str = datetime.today().strftime('%Y-%m-%d')
-    df['time'] = pd.to_datetime(df.apply(lambda row: f'{today_str} {row["hour"]:02}:{row["minute"]:02}:{row["second"]:02}', axis=1))
+    target_date_str = datetime.today().strftime('%Y-%m-%d')
+    current_time = datetime.now()
+    df['time'] = df.apply(adjust_time, axis=1, target_date_str=target_date_str, current_time=current_time)
     df_sorted = df.sort_values(by='time')
 
     return df_sorted
@@ -136,6 +146,7 @@ if __name__ == "__main__":
         sys.exit(1)
     while 1:
         df_sorted = read_csv_to_df(sa[1])
+        print (df_sorted)
         pd.set_option('display.max_rows', None)
         pd.set_option('display.max_columns', None)
 
