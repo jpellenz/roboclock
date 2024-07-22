@@ -130,11 +130,11 @@ def set_alarm(seconds, sound_filename, c_phase, next_time, n_phase):
         countdown_time = next_time
         current_phase = c_phase
         next_phase = n_phase
-        ## play("sounds/%s" % ("gong.mp3",))
+        play("sounds/%s" % ("gong.mp3",))
         sleep(1)
-        ## play("sounds/%s" % (sound_filename,))
+        play("sounds/%s" % (sound_filename,))
         sleep(1)
-        ## play("sounds/%s" % (sound_filename,))
+        play("sounds/%s" % (sound_filename,))
     except KeyboardInterrupt:
         print("Interrupted by user")
         sys.exit(1)
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     server_ip = get_local_ip()
     print ("Server IP: ", server_ip)
     threading.Thread(target=lambda: app.run(host=host_name, port=port, debug=True, use_reloader=False)).start()
-    # play("sounds/gong.mp3")
+    play("sounds/gong.mp3")
     sa = sys.argv
     lsa = len(sys.argv)
     if lsa != 2:
