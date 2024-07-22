@@ -69,11 +69,11 @@ def seconds_to_next_hour_or_half_hour(now):
     return int (seconds_to_half_hour)
 
 # Function to adjust the time if it's in the past
-def adjust_time(row, target_date_str, current_time):
+def adjust_datetime(row, target_date_str, current_time):
     combined_datetime_str = f'{target_date_str} {row["hour"]:02}:{row["minute"]:02}:{row["second"]:02}'
     combined_datetime = pd.to_datetime(combined_datetime_str)
-    if combined_datetime < current_time:
-        # Add one day to the date
+    if combined_datetime < current_time - timedelta(hours=12):
+        # Add one day to the date if it
         combined_datetime += timedelta(days=1)
     return combined_datetime
 
@@ -94,21 +94,27 @@ def read_csv_to_df(filename):
     df['minute'] = df['minute'].astype(int)
     df['second'] = df['second'].astype(int)
     target_date_str = datetime.today().strftime('%Y-%m-%d')
-    current_time = datetime.now()
-    df['time'] = df.apply(adjust_time, axis=1, target_date_str=target_date_str, current_time=current_time)
+    current_datetime = datetime.now()
+    df['time'] = df.apply(adjust_datetime, axis=1, target_date_str=target_date_str, current_time=current_datetime)
     df_sorted = df.sort_values(by='time')
 
     return df_sorted
 
 # Function to find the row closest to the current time (in the future)
-def find_future_time_row(df_sorted, current_time, offset):
-    closest_time_row = df_sorted[df_sorted['time'].dt.time >= current_time].iloc[offset]
+def find_future_time_row(df_sorted, current_datetime_pd, offset):
+    closest_time_row = df_sorted[df_sorted['time'] >= current_datetime_pd].iloc[offset]
     return closest_time_row
 
 # Function to find the row closest to the current time (in the past)
-def find_past_time_row(df_sorted, current_time):
-    past_time_row = df_sorted[df_sorted['time'].dt.time < current_time].iloc[-1]
-    return past_time_row
+def find_past_time_row(df_sorted, current_datetime_pd):
+    print ("df_sorted[df_sorted['time']: ", df_sorted['time'])
+    print ("current_datetime_pd: ", current_datetime_pd)
+    past_times = df_sorted[df_sorted['time'] < current_datetime_pd]
+    if not past_times.empty:
+        closest_past_time_row = past_times.iloc[-1]
+    else:
+        closest_past_time_row = None
+    return (closest_past_time_row)
 
 def play(audio_file_path):
     print("playing %s" % audio_file_path)
@@ -138,7 +144,7 @@ if __name__ == "__main__":
     server_ip = get_local_ip()
     print ("Server IP: ", server_ip)
     threading.Thread(target=lambda: app.run(host=host_name, port=port, debug=True, use_reloader=False)).start()
-    play("sounds/gong.mp3")
+    # play("sounds/gong.mp3")
     sa = sys.argv
     lsa = len(sys.argv)
     if lsa != 2:
@@ -146,20 +152,22 @@ if __name__ == "__main__":
         sys.exit(1)
     while 1:
         df_sorted = read_csv_to_df(sa[1])
-        print (df_sorted)
         pd.set_option('display.max_rows', None)
         pd.set_option('display.max_columns', None)
+        # print (df_sorted)
 
-        current_time = datetime.now().time()
-        past_time_row = find_past_time_row(df_sorted, current_time)
-        next_time_row = find_future_time_row(df_sorted, current_time, 0)
-        future_time_row = find_future_time_row(df_sorted, current_time, 1)
+        current_datetime = datetime.now()
+        current_datetime_pd = pd.to_datetime(current_datetime)
+        print(current_datetime_pd)
+        past_time_row = find_past_time_row(df_sorted, current_datetime_pd)
+        next_time_row = find_future_time_row(df_sorted, current_datetime_pd, 0)
+        future_time_row = find_future_time_row(df_sorted, current_datetime_pd, 1)
         # print ("past_time_row: ", past_time_row)
         # print ("next_time_row: ", next_time_row)
         # print ("future_time_row: ", future_time_row)
 
-        closest_future_time = next_time_row['time'].time()
-        time_difference = datetime.combine(datetime.today(), closest_future_time) - datetime.combine(datetime.today(), current_time)
+        closest_future_time = next_time_row['time']
+        time_difference = closest_future_time - current_datetime_pd
         time_difference_seconds = time_difference.total_seconds()
         next_time = datetime.combine(datetime.today(), next_time_row['time'].time())
 
