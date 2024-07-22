@@ -3,7 +3,6 @@ from time import sleep
 import subprocess
 from flask import Flask, jsonify
 from flask_cors import CORS
-from datetime import datetime, time, timedelta
 import threading
 import pandas as pd
 import socket
@@ -18,7 +17,8 @@ port = 5001
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})  # Activate CORS for all routes
 
-countdown_time = datetime.now() + timedelta(minutes=5)
+countdown_time = pd.Timestamp.now() + pd.Timedelta(minutes=5)
+
 current_phase = "---"
 next_phase = "---"
 server_ip = "---"
@@ -26,11 +26,11 @@ next_half_hour = "00:00"
 
 @app.route('/get_countdown', methods=['GET'])
 def get_countdown():
-    current_time = datetime.now()
+    current_time = pd.Timestamp.now()
     mission_time_remaining = seconds_to_next_hour_or_half_hour (current_time)
     time_remaining = countdown_time - current_time
     if time_remaining.total_seconds() < 0:
-        time_remaining = timedelta(seconds=0)
+        time_remaining = pd.Timedelta(seconds=0)
     # print("  Countdown time is %s in %s:%s (phase %s)." % (countdown_time, time_remaining.seconds // 60, time_remaining.seconds % 60, current_phase))
     return jsonify({
         'server_hour': current_time.hour,
@@ -64,21 +64,21 @@ def seconds_to_next_hour_or_half_hour(now):
     if now.minute < 30:
         next_half_hour = now.replace(minute=30, second=0, microsecond=0)
     else:
-        next_half_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-    seconds_to_half_hour = (next_half_hour - now).total_seconds()
+        next_half_hour = (now + pd.Timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+    seconds_to_half_hour = (next_half_hour - now).seconds
     return int (seconds_to_half_hour)
 
 # Function to adjust the time if it's in the past
-def adjust_datetime(row, target_date_str, current_time):
-    combined_datetime_str = f'{target_date_str} {row["hour"]:02}:{row["minute"]:02}:{row["second"]:02}'
-    combined_datetime = pd.to_datetime(combined_datetime_str)
-    if combined_datetime < current_time - timedelta(hours=12):
-        # Add one day to the date if it
-        combined_datetime += timedelta(days=1)
-    return combined_datetime
+def add_date_today_or_tomorrow(row, currentdate_time):
+    adjusted_datetime = pd.Timestamp.now()
+    adjusted_datetime = adjusted_datetime.replace (hour = row['hour'], minute = row['minute'], second = row['second'], microsecond=0)
+    if adjusted_datetime < (currentdate_time - pd.Timedelta(hours=12)):
+        adjusted_datetime += pd.Timedelta(days=1)
+    return adjusted_datetime
 
 def read_csv_to_df(filename):
     df = pd.read_csv(filename, delimiter=';')
+    current_datetime = pd.Timestamp.now()
     # Iterate over rows with '*' and create new rows for each hour
     star_rows = df[df['hour'] == '*']
     expanded_rows = []
@@ -93,22 +93,22 @@ def read_csv_to_df(filename):
     df['hour'] = df['hour'].astype(int)
     df['minute'] = df['minute'].astype(int)
     df['second'] = df['second'].astype(int)
-    target_date_str = datetime.today().strftime('%Y-%m-%d')
-    current_datetime = datetime.now()
-    df['time'] = df.apply(adjust_datetime, axis=1, target_date_str=target_date_str, current_time=current_datetime)
+    df['time'] = df.apply(add_date_today_or_tomorrow, axis=1, currentdate_time=current_datetime)
     df_sorted = df.sort_values(by='time')
 
     return df_sorted
 
 # Function to find the row closest to the current time (in the future)
 def find_future_time_row(df_sorted, current_datetime_pd, offset):
-    closest_time_row = df_sorted[df_sorted['time'] >= current_datetime_pd].iloc[offset]
-    return closest_time_row
+    future_times = df_sorted[df_sorted['time'] >= current_datetime_pd]
+    if not future_times.empty:
+        closest_future_time_row = future_times.iloc[offset]
+    else:
+        closest_future_time_row = None
+    return (closest_future_time_row)
 
 # Function to find the row closest to the current time (in the past)
 def find_past_time_row(df_sorted, current_datetime_pd):
-    print ("df_sorted[df_sorted['time']: ", df_sorted['time'])
-    print ("current_datetime_pd: ", current_datetime_pd)
     past_times = df_sorted[df_sorted['time'] < current_datetime_pd]
     if not past_times.empty:
         closest_past_time_row = past_times.iloc[-1]
@@ -125,16 +125,16 @@ def set_alarm(seconds, sound_filename, c_phase, next_time, n_phase):
     try:
         if seconds > 0:
             print("Sleeping light for %s secs." % (str(seconds),))
-            sleep(seconds)
+            sleep(seconds-1)
         print("Wake up")
         countdown_time = next_time
         current_phase = c_phase
         next_phase = n_phase
-        play("sounds/%s" % ("gong.mp3",))
+        ## play("sounds/%s" % ("gong.mp3",))
         sleep(1)
-        play("sounds/%s" % (sound_filename,))
+        ## play("sounds/%s" % (sound_filename,))
         sleep(1)
-        play("sounds/%s" % (sound_filename,))
+        ## play("sounds/%s" % (sound_filename,))
     except KeyboardInterrupt:
         print("Interrupted by user")
         sys.exit(1)
@@ -156,7 +156,7 @@ if __name__ == "__main__":
         pd.set_option('display.max_columns', None)
         # print (df_sorted)
 
-        current_datetime = datetime.now()
+        current_datetime = pd.Timestamp.now()
         current_datetime_pd = pd.to_datetime(current_datetime)
         print(current_datetime_pd)
         past_time_row = find_past_time_row(df_sorted, current_datetime_pd)
@@ -169,7 +169,7 @@ if __name__ == "__main__":
         closest_future_time = next_time_row['time']
         time_difference = closest_future_time - current_datetime_pd
         time_difference_seconds = time_difference.total_seconds()
-        next_time = datetime.combine(datetime.today(), next_time_row['time'].time())
+        next_time = next_time_row['time']
 
         countdown_time = next_time
         current_phase = past_time_row['phase']
@@ -180,4 +180,4 @@ if __name__ == "__main__":
         else:
             set_alarm(time_difference_seconds,
                       next_time_row['filename'], next_time_row['phase'],
-                      datetime.combine(datetime.today(), future_time_row['time'].time()), future_time_row['phase'], )
+                      future_time_row['time'], future_time_row['phase'])
