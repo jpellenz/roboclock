@@ -1,0 +1,11 @@
+hour;minute;second;filename;phase
+*;00;00;prepare_for_the_next_mission.m4a;Prepare for mission
+*;04;00;start_mission.m4a;Mobility task
+*;14;00;end_mobility_start_dexterity.aiff;Dexterity task
+*;24;00;end_dexterity_start_victimid.aiff;Victim identification
+*;26;00;end_of_mission_please_clear_the_arena.m4a;Clear arena
+*;30;00;prepare_for_the_next_mission.m4a;Prepare for mission
+*;34;00;start_mission.m4a;Mobility task
+*;44;00;end_mobility_start_dexterity.aiff;Dexterity task
+*;54;00;end_dexterity_start_victimid.aiff;Victim identification
+*;56;00;end_of_mission_please_clear_the_arena.m4a;Clear arena
