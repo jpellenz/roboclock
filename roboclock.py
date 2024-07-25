@@ -6,6 +6,7 @@ from flask_cors import CORS
 import threading
 import pandas as pd
 import socket
+import re
 import logging
 
 # Set up logging to suppress Flask startup messages
@@ -92,26 +93,52 @@ def add_date_today_or_tomorrow(row, currentdate_time):
     return adjusted_datetime
 
 
+def parse_hours_range(hours_range_str):
+    """
+    Parse a string defining a range of hours using regex (e.g., '9-11', '9|10|11') into a list of hours.
+    """
+    if hours_range_str == '*':
+        return list(range(24))  # All hours from 0 to 23
+
+    hours = set()
+    hour_regex = re.compile(r'(\d+)(?:-(\d+))?')
+
+    # Replace pipe symbol with comma for compatibility
+    hours_range_str = hours_range_str.replace('|', ',')
+
+    matches = re.finditer(hour_regex, hours_range_str)
+    for match in matches:
+        if match.group(2):  # Found a range
+            start = int(match.group(1))
+            end = int(match.group(2))
+            hours.update(range(start, end + 1))
+        else:  # Found a single hour
+            hours.add(int(match.group(1)))
+
+    return sorted(hours)
+
+
 def read_csv_to_df(filename):
     """
-    Read a CSV file into a DataFrame, expand rows with '*' into separate rows for each hour, and sort by time.
+    Read a CSV file into a DataFrame, expand rows with regex patterns into specified hours, and sort by time.
     """
     df = pd.read_csv(filename, delimiter=';')
     current_datetime = pd.Timestamp.now()
-    star_rows = df[df['hour'] == '*']
     expanded_rows = []
-    for _, row in star_rows.iterrows():
-        for hour in range(24):
+
+    for _, row in df.iterrows():
+        hours_range = parse_hours_range(row['hour'])
+        for hour in hours_range:
             new_row = row.copy()
             new_row['hour'] = hour
             expanded_rows.append(new_row)
+
     expanded_df = pd.DataFrame(expanded_rows)
-    df = pd.concat([df[df['hour'] != '*'], expanded_df], ignore_index=True)
-    df['hour'] = df['hour'].astype(int)
-    df['minute'] = df['minute'].astype(int)
-    df['second'] = df['second'].astype(int)
-    df['time'] = df.apply(add_date_today_or_tomorrow, axis=1, currentdate_time=current_datetime)
-    df_sorted = df.sort_values(by='time')
+    expanded_df['hour'] = expanded_df['hour'].astype(int)
+    expanded_df['minute'] = expanded_df['minute'].astype(int)
+    expanded_df['second'] = expanded_df['second'].astype(int)
+    expanded_df['time'] = expanded_df.apply(add_date_today_or_tomorrow, axis=1, currentdate_time=current_datetime)
+    df_sorted = expanded_df.sort_values(by='time')
 
     return df_sorted
 
@@ -184,7 +211,7 @@ if __name__ == "__main__":
 
     sa = sys.argv
     lsa = len(sys.argv)
-    if lsa != 2:
+    if lsa < 2:
         print("Usage: [ python3 ] roboclock.py timefile.csv")
         sys.exit(1)
 
@@ -193,6 +220,7 @@ if __name__ == "__main__":
         df_sorted = read_csv_to_df(sa[1])
         pd.set_option('display.max_rows', None)
         pd.set_option('display.max_columns', None)
+        print (df_sorted)
 
         current_datetime = pd.Timestamp.now()
         current_datetime_pd = pd.to_datetime(current_datetime)
@@ -208,7 +236,10 @@ if __name__ == "__main__":
         next_time = next_time_row['time']
 
         countdown_time = next_time
-        current_phase = past_time_row['phase']
+        if past_time_row is None:
+            current_phase = "[break]"
+        else:
+            current_phase = past_time_row['phase']
         next_phase = next_time_row['phase']
 
         if time_difference_seconds > 12:
