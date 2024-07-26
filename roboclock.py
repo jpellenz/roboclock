@@ -84,31 +84,22 @@ def seconds_to_next_hour_or_half_hour(now):
 def combine_date_time(row, base_date):
     return row['date'] + pd.Timedelta(hours=row['hour'], minutes=row['minute'], seconds=row['second'])
 
-
-def parse_hours_range(hours_range_str):
-    """
-    Parse a string defining a range of hours using regex (e.g., '9-11', '9|10|11') into a list of hours.
-    """
-    if hours_range_str == '*':
-        return list(range(24))  # All hours from 0 to 23
-
+def expand_hour_ranges(hour_ranges):
+    """Expand hour ranges into a list of individual hours, including handling '*'."""
     hours = set()
-    hour_regex = re.compile(r'(\d+)(?:-(\d+))?')
 
-    # Replace pipe symbol with comma for compatibility
-    hours_range_str = hours_range_str.replace('|', ',')
-
-    matches = re.finditer(hour_regex, hours_range_str)
-    for match in matches:
-        if match.group(2):  # Found a range
-            start = int(match.group(1))
-            end = int(match.group(2))
-            hours.update(range(start, end + 1))
-        else:  # Found a single hour
-            hours.add(int(match.group(1)))
+    if hour_ranges == '*':
+        # Include all hours from 0 to 23
+        hours.update(range(24))
+    else:
+        for part in hour_ranges.split(','):
+            if '-' in part:
+                start, end = map(int, part.split('-'))
+                hours.update(range(start, end + 1))
+            else:
+                hours.add(int(part))
 
     return sorted(hours)
-
 
 def read_csv_to_df(filename, current_datetime_pd):
     """
@@ -118,7 +109,7 @@ def read_csv_to_df(filename, current_datetime_pd):
     expanded_rows = []
 
     for _, row in df.iterrows():
-        hours_range = parse_hours_range(row['hour'])
+        hours_range = expand_hour_ranges(row['hour'])
         for hour in hours_range:
             new_row = row.copy()
             new_row['hour'] = hour
