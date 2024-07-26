@@ -25,7 +25,6 @@ next_phase = "---"
 server_ip = "---"
 next_half_hour = "00:00"
 
-
 @app.route('/get_countdown', methods=['GET'])
 def get_countdown():
     """
@@ -51,7 +50,6 @@ def get_countdown():
         'next_half_hour': next_half_hour.strftime("%H:%M")
     })
 
-
 def get_local_ip():
     """
     Determine the local IP address by connecting to an external server.
@@ -66,7 +64,6 @@ def get_local_ip():
         local_ip = '127.0.0.1'  # Fall back to loopback address if an error occurs
     return local_ip
 
-
 def seconds_to_next_hour_or_half_hour(now):
     """
     Calculate the seconds until the next hour or half-hour.
@@ -79,37 +76,30 @@ def seconds_to_next_hour_or_half_hour(now):
     seconds_to_half_hour = (next_half_hour - now).seconds
     return int(seconds_to_half_hour)
 
-
 def combine_date_time(row, base_date):
     return row['date'] + pd.Timedelta(hours=row['hour'], minutes=row['minute'], seconds=row['second'])
 
-def expand_hour_ranges(hour_ranges):
-    """Expand hour ranges into a list of individual hours, including handling '*'."""
-    hours = set()
-
-    if hour_ranges == '*':
-        # Include all hours from 0 to 23
-        hours.update(range(24))
-    else:
-        for part in hour_ranges.split(','):
-            if '-' in part:
-                start, end = map(int, part.split('-'))
-                hours.update(range(start, end + 1))
-            else:
-                hours.add(int(part))
-
-    return sorted(hours)
+def generate_times(start_hour, start_minute, cycle_min, repetitions, base_date):
+    """
+    Generate a list of timestamps based on start hour, start minute, cycle in minutes, and repetitions.
+    """
+    times = []
+    start_time = base_date.replace(hour=start_hour, minute=start_minute, second=0, microsecond=0)
+    for i in range(repetitions):
+        times.append(start_time + pd.Timedelta(minutes=cycle_min * i))
+    return times
 
 def read_csv_to_df(filename, current_datetime_pd):
     """
-    Read a CSV file into a DataFrame, expand rows with regex patterns into specified hours, and sort by time.
+    Read a CSV file into a DataFrame, expand rows into specified times, and sort by time.
     """
     df = pd.read_csv(filename, delimiter=';')
     expanded_rows = []
 
     for _, row in df.iterrows():
-        hours_range = expand_hour_ranges(row['hour'])
-        for hour in hours_range:
+        times = generate_times(row['start_hour'], row['start_minute'], row['cycle_min'], row['repetitions'], current_datetime_pd)
+        print (times)
+        for time in times:
             new_row = row.copy()
             new_row['date'] = current_datetime_pd.normalize()
             new_row['hour'] = time.hour
@@ -117,11 +107,16 @@ def read_csv_to_df(filename, current_datetime_pd):
             new_row['second'] = time.second
             new_row['datetime'] = time
             expanded_rows.append(new_row)
+            # Append for tomorrow (to handle midnight)
+            new_row = new_row.copy()
+            new_row['date'] = current_datetime_pd.normalize() + pd.Timedelta(days=1)
+            expanded_rows.append(new_row)
 
     expanded_df = pd.DataFrame(expanded_rows)
-    expanded_df['hour'] = expanded_df['hour'].astype(int)
-    expanded_df['minute'] = expanded_df['minute'].astype(int)
-    expanded_df['second'] = expanded_df['second'].astype(int)
+    expanded_df['start_hour'] = expanded_df['start_hour'].astype(int)
+    expanded_df['start_minute'] = expanded_df['start_minute'].astype(int)
+    expanded_df['cycle_min'] = expanded_df['cycle_min'].astype(int)
+    expanded_df['repetitions'] = expanded_df['repetitions'].astype(int)
 
     # Apply the function to create a new datetime column
     expanded_df['datetime'] = expanded_df.apply(combine_date_time, base_date=current_datetime_pd, axis=1)
@@ -129,7 +124,6 @@ def read_csv_to_df(filename, current_datetime_pd):
     df_sorted.index = range(1, len(expanded_df) + 1)
 
     return df_sorted
-
 
 def find_future_time_row(df_sorted, current_datetime_pd, offset):
     """
@@ -142,7 +136,6 @@ def find_future_time_row(df_sorted, current_datetime_pd, offset):
         closest_future_time_row = None
     return closest_future_time_row
 
-
 def find_past_time_row(df_sorted, current_datetime_pd):
     """
     Find the row in the DataFrame that is closest to the current time in the past.
@@ -154,14 +147,12 @@ def find_past_time_row(df_sorted, current_datetime_pd):
         closest_past_time_row = None
     return closest_past_time_row
 
-
 def play(audio_file_path):
     """
     Play an audio file using mplayer.
     """
     print("playing %s" % audio_file_path)
     subprocess.call(["mplayer", audio_file_path])
-
 
 def set_alarm(seconds, sound_filename, c_phase, next_time, n_phase):
     """
@@ -185,7 +176,6 @@ def set_alarm(seconds, sound_filename, c_phase, next_time, n_phase):
         print("Interrupted by user")
         sys.exit(1)
 
-
 if __name__ == "__main__":
     # Get local IP address
     server_ip = get_local_ip()
@@ -193,9 +183,6 @@ if __name__ == "__main__":
 
     # Start Flask server in a separate thread
     threading.Thread(target=lambda: app.run(host=host_name, port=port, debug=True, use_reloader=False)).start()
-
-    # Initial sound to indicate the server is running
-    # play("sounds/gong.mp3")
 
     sa = sys.argv
     lsa = len(sys.argv)
@@ -212,7 +199,7 @@ if __name__ == "__main__":
         pd.set_option('display.max_rows', None)
         pd.set_option('display.max_columns', None)
         df_sorted = read_csv_to_df(sa[1], current_datetime_pd)
-        print (df_sorted)
+        print(df_sorted)
 
         past_time_row = find_past_time_row(df_sorted, current_datetime_pd)
         next_time_row = find_future_time_row(df_sorted, current_datetime_pd, 0)
