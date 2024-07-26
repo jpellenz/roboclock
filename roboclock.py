@@ -81,16 +81,8 @@ def seconds_to_next_hour_or_half_hour(now):
     return int(seconds_to_half_hour)
 
 
-def add_date_today_or_tomorrow(row, currentdate_time):
-    """
-    Adjust the time in a DataFrame row to today or tomorrow based on the current date and time.
-    """
-    adjusted_datetime = pd.Timestamp.now()
-    adjusted_datetime = adjusted_datetime.replace(hour=row['hour'], minute=row['minute'], second=row['second'],
-                                                  microsecond=0)
-    if adjusted_datetime < (currentdate_time - pd.Timedelta(hours=12)):
-        adjusted_datetime += pd.Timedelta(days=1)
-    return adjusted_datetime
+def combine_date_time(row, base_date):
+    return row['date'] + pd.Timedelta(hours=row['hour'], minutes=row['minute'], seconds=row['second'])
 
 
 def parse_hours_range(hours_range_str):
@@ -118,12 +110,11 @@ def parse_hours_range(hours_range_str):
     return sorted(hours)
 
 
-def read_csv_to_df(filename):
+def read_csv_to_df(filename, current_datetime_pd):
     """
     Read a CSV file into a DataFrame, expand rows with regex patterns into specified hours, and sort by time.
     """
     df = pd.read_csv(filename, delimiter=';')
-    current_datetime = pd.Timestamp.now()
     expanded_rows = []
 
     for _, row in df.iterrows():
@@ -131,14 +122,23 @@ def read_csv_to_df(filename):
         for hour in hours_range:
             new_row = row.copy()
             new_row['hour'] = hour
+            # Append for today
+            new_row['date'] = current_datetime_pd.normalize()
+            expanded_rows.append(new_row)
+            # Append for tomorrow (to handle midnight)
+            new_row = new_row.copy()
+            new_row['date'] = current_datetime_pd.normalize() + pd.Timedelta(days=1)
             expanded_rows.append(new_row)
 
     expanded_df = pd.DataFrame(expanded_rows)
     expanded_df['hour'] = expanded_df['hour'].astype(int)
     expanded_df['minute'] = expanded_df['minute'].astype(int)
     expanded_df['second'] = expanded_df['second'].astype(int)
-    expanded_df['time'] = expanded_df.apply(add_date_today_or_tomorrow, axis=1, currentdate_time=current_datetime)
-    df_sorted = expanded_df.sort_values(by='time')
+
+    # Apply the function to create a new datetime column
+    expanded_df['datetime'] = expanded_df.apply(combine_date_time, base_date=current_datetime_pd, axis=1)
+    df_sorted = expanded_df.sort_values(by='datetime')
+    df_sorted.index = range(1, len(expanded_df) + 1)
 
     return df_sorted
 
@@ -147,7 +147,7 @@ def find_future_time_row(df_sorted, current_datetime_pd, offset):
     """
     Find the row in the DataFrame that is closest to the current time in the future.
     """
-    future_times = df_sorted[df_sorted['time'] >= current_datetime_pd]
+    future_times = df_sorted[df_sorted['datetime'] >= current_datetime_pd]
     if not future_times.empty:
         closest_future_time_row = future_times.iloc[offset]
     else:
@@ -159,7 +159,7 @@ def find_past_time_row(df_sorted, current_datetime_pd):
     """
     Find the row in the DataFrame that is closest to the current time in the past.
     """
-    past_times = df_sorted[df_sorted['time'] < current_datetime_pd]
+    past_times = df_sorted[df_sorted['datetime'] < current_datetime_pd]
     if not past_times.empty:
         closest_past_time_row = past_times.iloc[-1]
     else:
@@ -207,7 +207,7 @@ if __name__ == "__main__":
     threading.Thread(target=lambda: app.run(host=host_name, port=port, debug=True, use_reloader=False)).start()
 
     # Initial sound to indicate the server is running
-    play("sounds/gong.mp3")
+    # play("sounds/gong.mp3")
 
     sa = sys.argv
     lsa = len(sys.argv)
@@ -216,24 +216,24 @@ if __name__ == "__main__":
         sys.exit(1)
 
     while True:
-        # Read and process CSV file
-        df_sorted = read_csv_to_df(sa[1])
-        pd.set_option('display.max_rows', None)
-        pd.set_option('display.max_columns', None)
-        print (df_sorted)
-
         current_datetime = pd.Timestamp.now()
         current_datetime_pd = pd.to_datetime(current_datetime)
         print(current_datetime_pd)
+
+        # Read and process CSV file
+        pd.set_option('display.max_rows', None)
+        pd.set_option('display.max_columns', None)
+        df_sorted = read_csv_to_df(sa[1], current_datetime_pd)
+        print (df_sorted)
 
         past_time_row = find_past_time_row(df_sorted, current_datetime_pd)
         next_time_row = find_future_time_row(df_sorted, current_datetime_pd, 0)
         future_time_row = find_future_time_row(df_sorted, current_datetime_pd, 1)
 
-        closest_future_time = next_time_row['time']
+        closest_future_time = next_time_row['datetime']
         time_difference = closest_future_time - current_datetime_pd
         time_difference_seconds = time_difference.total_seconds()
-        next_time = next_time_row['time']
+        next_time = next_time_row['datetime']
 
         countdown_time = next_time
         if past_time_row is None:
@@ -246,4 +246,4 @@ if __name__ == "__main__":
             sleep(10)
         else:
             set_alarm(time_difference_seconds, next_time_row['filename'], next_time_row['phase'],
-                      future_time_row['time'], future_time_row['phase'])
+                      future_time_row['datetime'], future_time_row['phase'])
