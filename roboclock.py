@@ -111,13 +111,11 @@ def read_csv_to_df(filename, current_datetime_pd):
         hours_range = expand_hour_ranges(row['hour'])
         for hour in hours_range:
             new_row = row.copy()
-            new_row['hour'] = hour
-            # Append for today
             new_row['date'] = current_datetime_pd.normalize()
-            expanded_rows.append(new_row)
-            # Append for tomorrow (to handle midnight)
-            new_row = new_row.copy()
-            new_row['date'] = current_datetime_pd.normalize() + pd.Timedelta(days=1)
+            new_row['hour'] = time.hour
+            new_row['minute'] = time.minute
+            new_row['second'] = time.second
+            new_row['datetime'] = time
             expanded_rows.append(new_row)
 
     expanded_df = pd.DataFrame(expanded_rows)
