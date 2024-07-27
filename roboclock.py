@@ -1,12 +1,12 @@
 import sys
-from time import sleep
 import subprocess
-from flask import Flask, jsonify
-from flask_cors import CORS
 import threading
-import pandas as pd
 import socket
 import logging
+from time import sleep
+from flask import Flask, jsonify
+from flask_cors import CORS
+import pandas as pd
 
 # Set up logging to suppress Flask startup messages
 log = logging.getLogger('werkzeug')
@@ -55,13 +55,13 @@ def get_local_ip():
     Determine the local IP address by connecting to an external server.
     """
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.settimeout(0)
-        s.connect(('8.8.8.8', 80))
-        local_ip = s.getsockname()[0]
-        s.close()
-    except Exception as e:
-        local_ip = '127.0.0.1'  # Fall back to loopback address if an error occurs
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.settimeout(0)
+            s.connect(('8.8.8.8', 80))
+            local_ip = s.getsockname()[0]
+            s.close()
+    except Exception:
+        local_ip = '127.0.0.1'
     return local_ip
 
 def seconds_to_next_hour_or_half_hour(now):
@@ -98,7 +98,6 @@ def read_csv_to_df(filename, current_datetime_pd):
 
     for _, row in df.iterrows():
         times = generate_times(row['start_hour'], row['start_minute'], row['cycle_min'], row['repetitions'], current_datetime_pd)
-        print (times)
         for time in times:
             new_row = row.copy()
             new_row['date'] = current_datetime_pd.normalize()
@@ -107,10 +106,9 @@ def read_csv_to_df(filename, current_datetime_pd):
             new_row['second'] = time.second
             new_row['datetime'] = time
             expanded_rows.append(new_row)
-            # Append for tomorrow (to handle midnight)
-            new_row = new_row.copy()
-            new_row['date'] = current_datetime_pd.normalize() + pd.Timedelta(days=1)
-            expanded_rows.append(new_row)
+            new_row_tomorrow = new_row.copy()
+            new_row_tomorrow['date'] = current_datetime_pd.normalize() + pd.Timedelta(days=1)
+            expanded_rows.append(new_row_tomorrow)
 
     expanded_df = pd.DataFrame(expanded_rows)
     expanded_df['start_hour'] = expanded_df['start_hour'].astype(int)
@@ -120,16 +118,14 @@ def read_csv_to_df(filename, current_datetime_pd):
 
     # Apply the function to create a new datetime column
     expanded_df['datetime'] = expanded_df.apply(combine_date_time, base_date=current_datetime_pd, axis=1)
-    df_sorted = expanded_df.sort_values(by='datetime')
-    df_sorted.index = range(1, len(expanded_df) + 1)
-
-    return df_sorted
+    return expanded_df.sort_values(by='datetime').reset_index(drop=True)
 
 def find_future_time_row(df_sorted, current_datetime_pd, offset):
     """
     Find the row in the DataFrame that is closest to the current time in the future.
     """
     future_times = df_sorted[df_sorted['datetime'] >= current_datetime_pd]
+    return future_times.iloc[offset] if not future_times.empty else None
     if not future_times.empty:
         closest_future_time_row = future_times.iloc[offset]
     else:
@@ -141,6 +137,7 @@ def find_past_time_row(df_sorted, current_datetime_pd):
     Find the row in the DataFrame that is closest to the current time in the past.
     """
     past_times = df_sorted[df_sorted['datetime'] < current_datetime_pd]
+    return past_times.iloc[-1] if not past_times.empty else None
     if not past_times.empty:
         closest_past_time_row = past_times.iloc[-1]
     else:
@@ -151,7 +148,7 @@ def play(audio_file_path):
     """
     Play an audio file using mplayer.
     """
-    print("playing %s" % audio_file_path)
+    print(f"Playing {audio_file_path}")
     subprocess.call(["mplayer", audio_file_path])
 
 def set_alarm(seconds, sound_filename, c_phase, next_time, n_phase):
@@ -161,44 +158,39 @@ def set_alarm(seconds, sound_filename, c_phase, next_time, n_phase):
     global current_phase, next_phase, countdown_time
     try:
         if seconds > 0:
-            print("Sleeping light for %s secs." % (str(seconds),))
+            print(f"Sleeping for {seconds} seconds.")
             sleep(seconds - 1)
         print("Wake up")
         countdown_time = next_time
         current_phase = c_phase
         next_phase = n_phase
-        play("sounds/%s" % ("gong.mp3",))
+        play("sounds/gong.mp3")
         sleep(1)
-        play("sounds/%s" % (sound_filename,))
+        play(f"sounds/{sound_filename}")
         sleep(1)
-        play("sounds/%s" % (sound_filename,))
+        play(f"sounds/{sound_filename}")
     except KeyboardInterrupt:
         print("Interrupted by user")
         sys.exit(1)
 
 if __name__ == "__main__":
-    # Get local IP address
     server_ip = get_local_ip()
     print("Server IP: ", server_ip)
 
-    # Start Flask server in a separate thread
     threading.Thread(target=lambda: app.run(host=host_name, port=port, debug=True, use_reloader=False)).start()
 
-    sa = sys.argv
-    lsa = len(sys.argv)
-    if lsa < 2:
+    if len(sys.argv) < 2:
         print("Usage: [ python3 ] roboclock.py timefile.csv")
         sys.exit(1)
+    play("sounds/%s" % ("gong.mp3",))
 
     while True:
-        current_datetime = pd.Timestamp.now()
-        current_datetime_pd = pd.to_datetime(current_datetime)
+        current_datetime_pd = pd.Timestamp.now()
         print(current_datetime_pd)
 
-        # Read and process CSV file
         pd.set_option('display.max_rows', None)
         pd.set_option('display.max_columns', None)
-        df_sorted = read_csv_to_df(sa[1], current_datetime_pd)
+        df_sorted = read_csv_to_df(sys.argv[1], current_datetime_pd)
         print(df_sorted)
 
         past_time_row = find_past_time_row(df_sorted, current_datetime_pd)
@@ -206,19 +198,13 @@ if __name__ == "__main__":
         future_time_row = find_future_time_row(df_sorted, current_datetime_pd, 1)
 
         closest_future_time = next_time_row['datetime']
-        time_difference = closest_future_time - current_datetime_pd
-        time_difference_seconds = time_difference.total_seconds()
-        next_time = next_time_row['datetime']
+        time_difference_seconds = (closest_future_time - current_datetime_pd).total_seconds()
 
-        countdown_time = next_time
-        if past_time_row is None:
-            current_phase = "[break]"
-        else:
-            current_phase = past_time_row['phase']
+        countdown_time = closest_future_time
+        current_phase = past_time_row['phase'] if past_time_row is not None else "[break]"
         next_phase = next_time_row['phase']
 
         if time_difference_seconds > 12:
             sleep(10)
         else:
-            set_alarm(time_difference_seconds, next_time_row['filename'], next_time_row['phase'],
-                      future_time_row['datetime'], future_time_row['phase'])
+            set_alarm(time_difference_seconds, next_time_row['filename'], next_time_row['phase'], future_time_row['datetime'], future_time_row['phase'])
