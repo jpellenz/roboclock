@@ -55,14 +55,21 @@ def get_countdown():
         'next_half_hour': next_half_hour.strftime("%H:%M")
     })
 
+
 @app.route('/get_data', methods=['GET'])
 def get_data():
-    """
-    Flask route to return the contents of df_sorted as JSON.
-    """
     global df_sorted
+    if df_sorted is None or df_sorted.empty:
+        return jsonify([])  # Return an empty list if df_sorted is not initialized
+    current_time = pd.Timestamp.now()
     data = df_sorted.to_dict(orient='records')
+    past_time_row = find_past_time_row(df_sorted, current_datetime_pd)
+    # Mark the current row
+    for row in data:
+        row['current'] = row['datetime'] == past_time_row['datetime']
+
     return jsonify(data)
+
 
 def get_local_ip():
     """

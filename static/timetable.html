@@ -20,6 +20,11 @@
         th {
             background-color: #f4f4f4;
         }
+        .current-row {
+            background-color: #ffeb3b;
+            font-weight: bold;
+        }
+
     </style>
 </head>
 <body>
@@ -55,13 +60,17 @@
 
                                 data.forEach(function(row, index) {
                                     var tr = document.createElement('tr');
+                                    if (row.current) {
+                                        tr.classList.add('current-row');
+                                    }
 
                                     var indexTd = document.createElement('td');
-                                    indexTd.textContent = index + 1;
+                                    indexTd.textContent = index;
                                     tr.appendChild(indexTd);
 
+
                                     var dateTd = document.createElement('td');
-                                    dateTd.textContent = row.date;
+                                    dateTd.textContent = row.datetime;
                                     tr.appendChild(dateTd);
 
                                     var hourTd = document.createElement('td');
