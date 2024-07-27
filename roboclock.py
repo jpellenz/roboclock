@@ -4,7 +4,7 @@ import threading
 import socket
 import logging
 from time import sleep
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 import pandas as pd
 
@@ -24,6 +24,11 @@ current_phase = "---"
 next_phase = "---"
 server_ip = "---"
 next_half_hour = "00:00"
+df_sorted = None
+
+@app.route('/')
+def index():
+    return send_from_directory('static', 'index.html')
 
 @app.route('/get_countdown', methods=['GET'])
 def get_countdown():
@@ -49,6 +54,15 @@ def get_countdown():
         'server_ip': server_ip,
         'next_half_hour': next_half_hour.strftime("%H:%M")
     })
+
+@app.route('/get_data', methods=['GET'])
+def get_data():
+    """
+    Flask route to return the contents of df_sorted as JSON.
+    """
+    global df_sorted
+    data = df_sorted.to_dict(orient='records')
+    return jsonify(data)
 
 def get_local_ip():
     """
@@ -174,6 +188,7 @@ def set_alarm(seconds, sound_filename, c_phase, next_time, n_phase):
         sys.exit(1)
 
 if __name__ == "__main__":
+
     server_ip = get_local_ip()
     print("Server IP: ", server_ip)
 

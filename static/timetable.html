@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Data Monitor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+    </style>
+</head>
+<body>
+    <h1>Data Monitor</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Index</th>
+                <th>Date</th>
+                <th>Hour</th>
+                <th>Minute</th>
+                <th>Second</th>
+                <th>Phase</th>
+                <th>Filename</th>
+            </tr>
+        </thead>
+        <tbody id="data-table-body">
+            <!-- Data rows will be inserted here -->
+        </tbody>
+    </table>
+    <script>
+        function fetchData() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/get_data', true);
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        try {
+                            var data = JSON.parse(xhr.responseText);
+                            if (Array.isArray(data)) {
+                                var tableBody = document.getElementById('data-table-body');
+                                tableBody.innerHTML = ''; // Clear existing rows
+
+                                data.forEach(function(row, index) {
+                                    var tr = document.createElement('tr');
+
+                                    var indexTd = document.createElement('td');
+                                    indexTd.textContent = index + 1;
+                                    tr.appendChild(indexTd);
+
+                                    var dateTd = document.createElement('td');
+                                    dateTd.textContent = row.date;
+                                    tr.appendChild(dateTd);
+
+                                    var hourTd = document.createElement('td');
+                                    hourTd.textContent = row.hour;
+                                    tr.appendChild(hourTd);
+
+                                    var minuteTd = document.createElement('td');
+                                    minuteTd.textContent = row.minute;
+                                    tr.appendChild(minuteTd);
+
+                                    var secondTd = document.createElement('td');
+                                    secondTd.textContent = row.second;
+                                    tr.appendChild(secondTd);
+
+                                    var phaseTd = document.createElement('td');
+                                    phaseTd.textContent = row.phase;
+                                    tr.appendChild(phaseTd);
+
+                                    var filenameTd = document.createElement('td');
+                                    filenameTd.textContent = row.filename;
+                                    tr.appendChild(filenameTd);
+
+                                    tableBody.appendChild(tr);
+                                });
+                            } else {
+                                console.error('Data is not an array:', data);
+                            }
+                        } catch (e) {
+                            console.error('Error parsing JSON:', e);
+                        }
+                    } else {
+                        console.error('Request failed with status:', xhr.status);
+                    }
+                }
+            };
+            xhr.send();
+        }
+
+        // Fetch data every 5 seconds
+        setInterval(fetchData, 5000);
+        window.onload = fetchData;
+    </script>
+</body>
+</html>
