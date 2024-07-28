@@ -30,11 +30,9 @@ df_sorted = None
 def index():
     return send_from_directory('static', 'index.html')
 
+
 @app.route('/get_countdown', methods=['GET'])
 def get_countdown():
-    """
-    Flask route to return the current countdown and server status.
-    """
     current_time = pd.Timestamp.now()
     mission_time_remaining = seconds_to_next_hour_or_half_hour(current_time)
     time_remaining = countdown_time - current_time
@@ -45,12 +43,10 @@ def get_countdown():
         'server_hour': current_time.hour,
         'server_minute': current_time.minute,
         'server_second': current_time.second,
-        'minutes': time_remaining.seconds // 60,
-        'seconds': time_remaining.seconds % 60,
+        'countdown_seconds': int(time_remaining.total_seconds()),
         'current_phase': current_phase,
         'next_phase': next_phase,
-        'remaining_mission_time_minutes': mission_time_remaining // 60,
-        'remaining_mission_time_seconds': mission_time_remaining % 60,
+        'remaining_mission_time_seconds': mission_time_remaining,
         'server_ip': server_ip,
         'next_half_hour': next_half_hour.strftime("%H:%M")
     })

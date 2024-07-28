@@ -1,4 +1,5 @@
 start_hour;start_minute;cycle_min;repetitions;filename;phase
+06;15;0;1;gong.mp3;Teamleader Meeting
 08;30;0;1;gong.mp3;Teamleader Meeting
 09;00;30;6;prepare_for_the_next_mission.m4a;Prepare for mission
 09;04;30;6;start_mission.m4a;Mobility task

@@ -28,11 +28,11 @@
             left: 0;
         }
         img {
-            max-height: 150px; /* Adjusted size */
+            max-height: 150px;
         }
         #qrcode {
-            width: 150px; /* Adjusted size */
-            height: 150px; /* Adjusted size */
+            width: 150px;
+            height: 150px;
         }
         h1 {
             font-size: 4em;
@@ -68,35 +68,43 @@
                 xhr.onload = function () {
                     if (xhr.status === 200) {
                         const response = JSON.parse(xhr.responseText);
-                        const server_hour = response.server_hour;
-                        const server_minute = response.server_minute;
-                        const server_second = response.server_second;
-                        const minutes = response.minutes;
-                        const seconds = response.seconds;
-                        const current_phase = response.current_phase;
-                        const next_phase = response.next_phase;
-                        const remaining_mission_time_minutes = response.remaining_mission_time_minutes;
-                        const remaining_mission_time_seconds = response.remaining_mission_time_seconds;
-                        const server_ip = response.server_ip;
-                        const full_url = `http://${server_ip}:5001/static/index.html`;
-                        const next_half_hour = response.next_half_hour;
-                        document.getElementById('countdown').innerText = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-                        document.getElementById('current_phase').innerText = `${current_phase}`;
-                        document.getElementById('next_phase').innerText = `Next task: ${next_phase}`;
-                        if (response.remaining_mission_time_minutes === 0) {
-                            remaining_mission_time_text = `${remaining_mission_time_seconds} s`;
-                        } else {
-                            remaining_mission_time_text = `${remaining_mission_time_minutes} min`;
-                        }
-                        document.getElementById('remaining_mission_time').innerText = `(It's ${server_hour}:${server_minute < 10 ? '0' : ''}${server_minute}, next team starts in ${remaining_mission_time_text} at ${next_half_hour})`;
+                        const countdownSeconds = response.countdown_seconds;
+                        const currentPhase = response.current_phase;
+                        const nextPhase = response.next_phase;
+                        const remainingMissionTimeSeconds = response.remaining_mission_time_seconds;
+                        const serverHour = response.server_hour;
+                        const serverMinute = response.server_minute;
+                        const serverSecond = response.server_second;
+                        const serverIp = response.server_ip;
+                        const fullUrl = `http://${serverIp}:5001/static/index.html`;
+                        const nextHalfHour = response.next_half_hour;
+
+                        // Convert countdown seconds to hours, minutes, and seconds
+                        const hours = Math.floor(countdownSeconds / 3600);
+                        const minutes = Math.floor((countdownSeconds % 3600) / 60);
+                        const seconds = countdownSeconds % 60;
+
+                        // Convert remaining mission time seconds to minutes and seconds
+                        const remainingMinutes = Math.floor(remainingMissionTimeSeconds / 60);
+                        const remainingSeconds = remainingMissionTimeSeconds % 60;
+
+                        // Display the countdown
+                        const countdownDisplay = hours > 0 ? `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}` : `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                        document.getElementById('countdown').innerText = countdownDisplay;
+
+                        document.getElementById('current_phase').innerText = `${currentPhase}`;
+                        document.getElementById('next_phase').innerText = `Next task: ${nextPhase}`;
+                        const remainingMissionTimeText = remainingMinutes === 0 ? `${remainingSeconds} s` : `${remainingMinutes} min`;
+                        document.getElementById('remaining_mission_time').innerText = `(It's ${serverHour}:${serverMinute.toString().padStart(2, '0')}, next team starts in ${remainingMissionTimeText} at ${nextHalfHour})`;
+
                         // Update the QR code
-                        document.getElementById('server_ip').innerText = `Server IP: ${server_ip}`;
+                        document.getElementById('server_ip').innerText = `Server IP: ${serverIp}`;
                         if (qrcode) {
                             qrcode.clear();
-                            qrcode.makeCode(full_url);
+                            qrcode.makeCode(fullUrl);
                         } else {
                             qrcode = new QRCode(document.getElementById("qrcode"), {
-                                text: full_url,
+                                text: fullUrl,
                                 width: 200,
                                 height: 200
                             });
@@ -106,7 +114,7 @@
                 xhr.send();
             }
             updateCountdown();
-            const intervalId = setInterval(updateCountdown, 200);
+            const intervalId = setInterval(updateCountdown, 1000);
         }
     </script>
 </head>
