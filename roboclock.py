@@ -67,6 +67,11 @@ def get_data():
     return jsonify(data)
 
 
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    return send_from_directory('static', filename)
+
+
 def get_local_ip():
     """
     Determine the local IP address by connecting to an external server.
