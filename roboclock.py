@@ -23,7 +23,6 @@ countdown_time = pd.Timestamp.now() + pd.Timedelta(minutes=5)
 current_phase = "---"
 next_phase = "---"
 server_ip = "---"
-next_half_hour = "00:00"
 df_sorted = None
 
 @app.route('/')
@@ -34,7 +33,12 @@ def index():
 @app.route('/get_countdown', methods=['GET'])
 def get_countdown():
     current_time = pd.Timestamp.now()
-    mission_time_remaining = seconds_to_next_hour_or_half_hour(current_time)
+    if (df_sorted is None) or (df_sorted.empty):
+        print("df_sorted is empty")
+        mission_time_remaining = 0
+    else:
+        mission_time_remaining = seconds_to_next_prepare_for_mission(current_time, df_sorted)
+        next_team_time = next_prepare_for_mission_time(current_time, df_sorted)
     time_remaining = countdown_time - current_time
     if time_remaining.total_seconds() < 0:
         time_remaining = pd.Timedelta(seconds=0)
@@ -48,7 +52,7 @@ def get_countdown():
         'next_phase': next_phase,
         'remaining_mission_time_seconds': mission_time_remaining,
         'server_ip': server_ip,
-        'next_half_hour': next_half_hour.strftime("%H:%M")
+        'next_team_time': next_team_time.strftime("%H:%M")
     })
 
 
@@ -86,17 +90,26 @@ def get_local_ip():
         local_ip = '127.0.0.1'
     return local_ip
 
-def seconds_to_next_hour_or_half_hour(now):
-    """
-    Calculate the seconds until the next hour or half-hour.
-    """
-    global next_half_hour
-    if now.minute < 30:
-        next_half_hour = now.replace(minute=30, second=0, microsecond=0)
+def next_prepare_for_mission_time(now, df_sorted):
+    prepare_for_mission_row = find_prepare_for_mission_row(df_sorted, now)
+    if prepare_for_mission_row is not None and not prepare_for_mission_row.empty:
+        prepare_for_mission_time = prepare_for_mission_row['datetime']
     else:
-        next_half_hour = (now + pd.Timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-    seconds_to_half_hour = (next_half_hour - now).seconds
-    return int(seconds_to_half_hour)
+        prepare_for_mission_time = None
+    return prepare_for_mission_time
+
+
+def seconds_to_next_prepare_for_mission(now, df_sorted):
+    """
+    Calculate the seconds until the next "Prepare for mission" phase.
+    """
+    t = next_prepare_for_mission_time(now, df_sorted)
+    if t is not None:
+        s = (t - now).total_seconds()
+    else:
+        s = 0
+    return int(s)
+
 
 def combine_date_time(row, base_date):
     return row['date'] + pd.Timedelta(hours=row['hour'], minutes=row['minute'], seconds=row['second'])
@@ -154,6 +167,14 @@ def find_future_time_row(df_sorted, current_datetime_pd, offset):
         closest_future_time_row = None
     return closest_future_time_row
 
+# function to find the next row in df_sorted that contains "Prepare for mission" in the phase column in the future
+def find_prepare_for_mission_row(df_sorted, current_datetime_pd):
+    """
+    Find the next row in the DataFrame that contains "Prepare for mission" in the phase column in the future.
+    """
+    future_times = df_sorted[(df_sorted['phase'] == 'Prepare for mission') & (df_sorted['datetime'] >= current_datetime_pd)]
+    return future_times.iloc[0] if not future_times.empty else None
+
 def find_past_time_row(df_sorted, current_datetime_pd):
     """
     Find the row in the DataFrame that is closest to the current time in the past.
@@ -196,11 +217,16 @@ def set_alarm(seconds, sound_filename, c_phase, next_time, n_phase):
         sys.exit(1)
 
 if __name__ == "__main__":
-
     server_ip = get_local_ip()
     print("Server IP: ", server_ip)
 
     threading.Thread(target=lambda: app.run(host=host_name, port=port, debug=True, use_reloader=False)).start()
+
+    pd.set_option('display.max_rows', None)
+    pd.set_option('display.max_columns', None)
+
+    current_datetime_pd = pd.Timestamp.now()
+    df_sorted = read_csv_to_df(sys.argv[1], current_datetime_pd)
 
     if len(sys.argv) < 2:
         print("Usage: [ python3 ] roboclock.py timefile.csv")
@@ -209,17 +235,11 @@ if __name__ == "__main__":
 
     while True:
         current_datetime_pd = pd.Timestamp.now()
-        print(current_datetime_pd)
-
-        pd.set_option('display.max_rows', None)
-        pd.set_option('display.max_columns', None)
         df_sorted = read_csv_to_df(sys.argv[1], current_datetime_pd)
-        print(df_sorted)
 
         past_time_row = find_past_time_row(df_sorted, current_datetime_pd)
         next_time_row = find_future_time_row(df_sorted, current_datetime_pd, 0)
         future_time_row = find_future_time_row(df_sorted, current_datetime_pd, 1)
-
         closest_future_time = next_time_row['datetime']
         time_difference_seconds = (closest_future_time - current_datetime_pd).total_seconds()
 

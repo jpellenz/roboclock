@@ -77,7 +77,7 @@
                         const serverSecond = response.server_second;
                         const serverIp = response.server_ip;
                         const fullUrl = `http://${serverIp}:5001/static/index.html`;
-                        const nextHalfHour = response.next_half_hour;
+                        const nextTeamTime = response.next_team_time;
 
                         // Convert countdown seconds to hours, minutes, and seconds
                         const hours = Math.floor(countdownSeconds / 3600);
@@ -95,7 +95,7 @@
                         document.getElementById('current_phase').innerText = `${currentPhase}`;
                         document.getElementById('next_phase').innerText = `Next task: ${nextPhase}`;
                         const remainingMissionTimeText = remainingMinutes === 0 ? `${remainingSeconds} s` : `${remainingMinutes} min`;
-                        document.getElementById('remaining_mission_time').innerText = `(It's ${serverHour}:${serverMinute.toString().padStart(2, '0')}, next team starts in ${remainingMissionTimeText} at ${nextHalfHour})`;
+                        document.getElementById('remaining_mission_time').innerText = `(It's ${serverHour}:${serverMinute.toString().padStart(2, '0')}, next team starts in ${remainingMissionTimeText} at ${nextTeamTime})`;
 
                         // Update the QR code
                         document.getElementById('server_ip').innerText = `Server IP: ${serverIp}`;
