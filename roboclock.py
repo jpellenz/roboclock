@@ -71,6 +71,44 @@ def get_data():
     return jsonify(data)
 
 
+@app.route('/get_current_audio', methods=['GET'])
+def get_current_audio():
+    """
+    Return the current audio file that should be played based on the current phase.
+    """
+    global current_phase, df_sorted
+    current_time = pd.Timestamp.now()
+    
+    if df_sorted is None or df_sorted.empty:
+        return jsonify({
+            'audio_file': None,
+            'phase': current_phase
+        })
+    
+    past_time_row = find_past_time_row(df_sorted, current_time)
+    
+    if past_time_row is None:
+        return jsonify({
+            'audio_file': None,
+            'phase': current_phase
+        })
+    
+    audio_file = past_time_row['filename'] if 'filename' in past_time_row and past_time_row['filename'] else None
+    
+    return jsonify({
+        'audio_file': audio_file,
+        'phase': current_phase
+    })
+
+
+@app.route('/sounds/<path:filename>')
+def serve_sounds(filename):
+    """
+    Serve audio files from the sounds directory.
+    """
+    return send_from_directory('sounds', filename)
+
+
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     return send_from_directory('static', filename)

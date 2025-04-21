@@ -56,12 +56,29 @@
             font-size: 3em;
             margin-top: 15px;
         }
+        #play_audio_button {
+            display: none;
+            margin-top: 20px;
+            font-size: 2em;
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
         let qrcode;
+        let currentAudioFile = null;
+        let audioElement = null;
+        let lastPhase = null;
 
         function startCountdown() {
+            // Audio-Element erstellen
+            audioElement = new Audio();
+            
             function updateCountdown() {
                 const xhr = new XMLHttpRequest();
                 xhr.open('GET', '/get_countdown', true);
@@ -109,12 +126,67 @@
                                 height: 200
                             });
                         }
+                        
+                        // Wenn sich die Phase geändert hat, Audio aktualisieren
+                        if (lastPhase !== currentPhase) {
+                            lastPhase = currentPhase;
+                            checkCurrentAudio();
+                        }
                     }
                 };
                 xhr.send();
             }
+            
+            function checkCurrentAudio() {
+                const audioXhr = new XMLHttpRequest();
+                audioXhr.open('GET', '/get_current_audio', true);
+                audioXhr.onload = function () {
+                    if (audioXhr.status === 200) {
+                        const audioResponse = JSON.parse(audioXhr.responseText);
+                        const audioFile = audioResponse.audio_file;
+                        
+                        // Nur abspielen, wenn eine Audiodatei verfügbar ist und sie sich von der aktuellen unterscheidet
+                        if (audioFile && audioFile !== currentAudioFile) {
+                            currentAudioFile = audioFile;
+                            playAudio(audioFile);
+                        }
+                    }
+                };
+                audioXhr.send();
+            }
+            
+            function playAudio(filename) {
+                if (!filename) return;
+                
+                // Audio-Element aktualisieren und abspielen
+                audioElement.src = `/sounds/${filename}`;
+                
+                // Audio abspielen, wenn Benutzerinteraktion stattgefunden hat
+                audioElement.play().catch(e => {
+                    console.log('Automatisches Abspielen fehlgeschlagen. Benutzerinteraktion erforderlich:', e);
+                    // Setze visuelles Feedback, dass Audio bereit zum Abspielen ist
+                    document.getElementById('play_audio_button').style.display = 'block';
+                });
+            }
+            
+            // Initiale Updates
             updateCountdown();
-            const intervalId = setInterval(updateCountdown, 1000);
+            checkCurrentAudio();
+            
+            // Regelmäßige Updates
+            const countdownInterval = setInterval(updateCountdown, 1000);
+            const audioCheckInterval = setInterval(checkCurrentAudio, 5000);
+        }
+        
+        // Funktion zum manuellen Abspielen des aktuellen Audios (falls automatisches Abspielen blockiert wird)
+        function manualPlayAudio() {
+            if (audioElement && audioElement.src) {
+                audioElement.play().then(() => {
+                    document.getElementById('play_audio_button').style.display = 'none';
+                }).catch(e => {
+                    console.error('Fehler beim Abspielen des Audios:', e);
+                });
+            }
         }
     </script>
 </head>
@@ -129,5 +201,6 @@
     <div id="next_phase">Loading...</div>
     <div id="remaining_mission_time">Loading...</div>
     <div id="server_ip">Loading...</div>
+    <button id="play_audio_button" onclick="manualPlayAudio()">Play Audio</button>
 </body>
 </html>
