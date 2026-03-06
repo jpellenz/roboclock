@@ -1,2 +1,2 @@
 #!/bin/bash
-ssh pellenz@10.128.173.226
+ssh pellenz@192.168.178.158

@@ -36,12 +36,17 @@ def get_countdown():
     if (df_sorted is None) or (df_sorted.empty):
         print("df_sorted is empty")
         mission_time_remaining = 0
+        next_team_time = None
     else:
         mission_time_remaining = seconds_to_next_prepare_for_mission(current_time, df_sorted)
         next_team_time = next_prepare_for_mission_time(current_time, df_sorted)
     time_remaining = countdown_time - current_time
     if time_remaining.total_seconds() < 0:
         time_remaining = pd.Timedelta(seconds=0)
+
+    # Compute phase boxes for the current group
+    past_time_row = find_past_time_row(df_sorted, current_time)
+    phase_boxes = find_phase_boxes(df_sorted, past_time_row)
 
     return jsonify({
         'server_hour': current_time.hour,
@@ -52,7 +57,8 @@ def get_countdown():
         'next_phase': next_phase,
         'remaining_mission_time_seconds': mission_time_remaining,
         'server_ip': server_ip,
-        'next_team_time': next_team_time.strftime("%H:%M")
+        'next_team_time': next_team_time.strftime("%H:%M") if next_team_time else "--:--",
+        'phase_boxes': phase_boxes
     })
 
 
@@ -171,13 +177,14 @@ def read_csv_to_df(filename, current_datetime_pd):
 
     for _, row in df.iterrows():
         times = generate_times(row['start_hour'], row['start_minute'], row['cycle_min'], row['repetitions'], current_datetime_pd)
-        for time in times:
+        for slot_index, time in enumerate(times):
             new_row = row.copy()
             new_row['date'] = current_datetime_pd.normalize()
             new_row['hour'] = time.hour
             new_row['minute'] = time.minute
             new_row['second'] = time.second
             new_row['datetime'] = time
+            new_row['slot_index'] = slot_index
             expanded_rows.append(new_row)
             new_row_tomorrow = new_row.copy()
             new_row_tomorrow['date'] = current_datetime_pd.normalize() + pd.Timedelta(days=1)
@@ -193,6 +200,37 @@ def read_csv_to_df(filename, current_datetime_pd):
     expanded_df['datetime'] = expanded_df.apply(combine_date_time, base_date=current_datetime_pd, axis=1)
     return expanded_df.sort_values(by='datetime').reset_index(drop=True)
 
+def find_phase_boxes(df_sorted, current_row):
+    """
+    Find all phases in the same group and slot as the current row.
+    Returns a list of dicts with phase name and whether it's active.
+    """
+    if current_row is None:
+        return []
+    group = current_row.get('group', '')
+    if not group or (isinstance(group, float) and pd.isna(group)):
+        # No group — return single box for current phase
+        return [{'phase': current_row['phase'], 'active': True}]
+    slot_index = current_row.get('slot_index', None)
+    current_date = current_row.get('date', None)
+    # Find all rows in the same group + slot_index + date
+    mask = (df_sorted['group'] == group) & (df_sorted['slot_index'] == slot_index) & (df_sorted['date'] == current_date)
+    group_rows = df_sorted[mask].sort_values(by='datetime')
+    boxes = []
+    for _, row in group_rows.iterrows():
+        duration = row.get('duration_min', '')
+        if isinstance(duration, float) and pd.isna(duration):
+            duration = ''
+        else:
+            duration = int(duration) if duration != '' else ''
+        boxes.append({
+            'phase': row['phase'],
+            'active': row['datetime'] == current_row['datetime'],
+            'duration_min': duration
+        })
+    return boxes
+
+
 def find_future_time_row(df_sorted, current_datetime_pd, offset):
     """
     Find the row in the DataFrame that is closest to the current time in the future.
@@ -205,13 +243,34 @@ def find_future_time_row(df_sorted, current_datetime_pd, offset):
         closest_future_time_row = None
     return closest_future_time_row
 
-# function to find the next row in df_sorted that contains "Prepare for mission" in the phase column in the future
+# function to find the next row in df_sorted that starts a new group cycle in the future
 def find_prepare_for_mission_row(df_sorted, current_datetime_pd):
     """
-    Find the next row in the DataFrame that contains "Prepare for mission" in the phase column in the future.
+    Find the next row that starts a new group cycle (different slot_index from current).
+    Falls back to the first future row with a non-empty group.
     """
-    future_times = df_sorted[(df_sorted['phase'] == 'Prepare for mission') & (df_sorted['datetime'] >= current_datetime_pd)]
-    return future_times.iloc[0] if not future_times.empty else None
+    past_time_row = find_past_time_row(df_sorted, current_datetime_pd)
+    if past_time_row is not None:
+        current_group = past_time_row.get('group', '')
+        current_slot = past_time_row.get('slot_index', None)
+        if current_group and not (isinstance(current_group, float) and pd.isna(current_group)):
+            # Find next row in same group but different (next) slot
+            future_times = df_sorted[
+                (df_sorted['group'] == current_group) &
+                (df_sorted['slot_index'] == current_slot + 1) &
+                (df_sorted['datetime'] >= current_datetime_pd)
+            ]
+            if not future_times.empty:
+                return future_times.iloc[0]
+    # Fallback: find next future row that has a group
+    future_with_group = df_sorted[
+        (df_sorted['datetime'] >= current_datetime_pd) &
+        (df_sorted['group'].notna()) &
+        (df_sorted['group'] != '')
+    ]
+    if not future_with_group.empty:
+        return future_with_group.iloc[0]
+    return None
 
 def find_past_time_row(df_sorted, current_datetime_pd):
     """
@@ -234,22 +293,21 @@ def play(audio_file_path):
 
 def set_alarm(seconds, sound_filename, c_phase, next_time, n_phase):
     """
-    Set an alarm by sleeping for a specified number of seconds and playing a series of sounds.
+    Set an alarm by sleeping for a specified number of seconds and updating the phase.
+    Sound playback has been moved to the client side.
     """
     global current_phase, next_phase, countdown_time
     try:
-        if seconds > 0:
+        if seconds > 1:
             print(f"Sleeping for {seconds} seconds.")
             sleep(seconds - 1)
+        elif seconds > 0:
+            sleep(seconds)
         print("Wake up")
         countdown_time = next_time
         current_phase = c_phase
         next_phase = n_phase
-        play("sounds/gong.mp3")
-        sleep(1)
-        play(f"sounds/{sound_filename}")
-        sleep(1)
-        play(f"sounds/{sound_filename}")
+        # Die lokale Audiowiedergabe wurde entfernt und wird nun vom Client ausgeführt
     except KeyboardInterrupt:
         print("Interrupted by user")
         sys.exit(1)
@@ -269,7 +327,8 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: [ python3 ] roboclock.py timefile.csv")
         sys.exit(1)
-    play("sounds/%s" % ("gong.mp3",))
+    # Die lokale Audiowiedergabe beim Start wurde entfernt
+    # play("sounds/%s" % ("gong.mp3",))
 
     while True:
         current_datetime_pd = pd.Timestamp.now()
@@ -278,6 +337,14 @@ if __name__ == "__main__":
         past_time_row = find_past_time_row(df_sorted, current_datetime_pd)
         next_time_row = find_future_time_row(df_sorted, current_datetime_pd, 0)
         future_time_row = find_future_time_row(df_sorted, current_datetime_pd, 1)
+
+        if next_time_row is None:
+            # No more future events — wait and retry
+            current_phase = past_time_row['phase'] if past_time_row is not None else "[break]"
+            next_phase = "---"
+            sleep(10)
+            continue
+
         closest_future_time = next_time_row['datetime']
         time_difference_seconds = (closest_future_time - current_datetime_pd).total_seconds()
 
@@ -287,5 +354,8 @@ if __name__ == "__main__":
 
         if time_difference_seconds > 12:
             sleep(10)
-        else:
+        elif future_time_row is not None:
             set_alarm(time_difference_seconds, next_time_row['filename'], next_time_row['phase'], future_time_row['datetime'], future_time_row['phase'])
+        else:
+            # Last event — just sleep through it
+            set_alarm(time_difference_seconds, next_time_row['filename'], next_time_row['phase'], closest_future_time + pd.Timedelta(seconds=1), "---")
