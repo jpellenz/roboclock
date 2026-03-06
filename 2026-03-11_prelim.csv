@@ -1,6 +1,12 @@
 start_hour;start_minute;cycle_min;repetitions;filename;phase;group;duration_min
-22;27;5;24;prepare_for_the_next_mission.m4a;SET UP;mission;5
-22;28;5;24;start_mission.m4a;MOBILITY;mission;10
-22;29;5;24;end_mobility_start_dexterity.m4a;INSPECT;mission;10
-22;30;5;24;end_of_mission_please_clear_the_arena.m4a;EXIT;mission;5
-23;30;0;1;gong.mp3;Teamleader Meeting;;
+09;00;30;7;prepare_for_the_next_mission.m4a;SET UP;mission_am;4
+09;04;30;7;start_mission.m4a;MOBILITY;mission_am;10
+09;14;30;7;end_mobility_start_dexterity.m4a;INSPECT;mission_am;10
+09;24;30;7;end_dexterity_start_victimid.m4a;EXIT;mission_am;2
+09;26;30;7;end_of_mission_please_clear_the_arena.m4a;Clear arena;mission_am;4
+14;00;30;9;prepare_for_the_next_mission.m4a;SET UP;mission_pm;4
+14;04;30;9;start_mission.m4a;MOBILITY;mission_pm;10
+14;14;30;9;end_mobility_start_dexterity.m4a;INSPECT;mission_pm;10
+14;24;30;9;end_dexterity_start_victimid.m4a;EXIT;mission_pm;2
+14;26;30;9;end_of_mission_please_clear_the_arena.m4a;Clear arena;mission_pm;4
+18;00;0;1;gong.mp3;Teamleader Meeting;;
