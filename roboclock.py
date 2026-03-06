@@ -1,5 +1,4 @@
 import sys
-import subprocess
 import threading
 import socket
 import logging
@@ -69,10 +68,10 @@ def get_data():
         return jsonify([])  # Return an empty list if df_sorted is not initialized
     current_time = pd.Timestamp.now()
     data = df_sorted.to_dict(orient='records')
-    past_time_row = find_past_time_row(df_sorted, current_datetime_pd)
+    past_time_row = find_past_time_row(df_sorted, current_time)
     # Mark the current row
     for row in data:
-        row['current'] = row['datetime'] == past_time_row['datetime']
+        row['current'] = past_time_row is not None and row['datetime'] == past_time_row['datetime']
 
     return jsonify(data)
 
@@ -129,7 +128,6 @@ def get_local_ip():
             s.settimeout(0)
             s.connect(('8.8.8.8', 80))
             local_ip = s.getsockname()[0]
-            s.close()
     except Exception:
         local_ip = '127.0.0.1'
     return local_ip
@@ -236,12 +234,9 @@ def find_future_time_row(df_sorted, current_datetime_pd, offset):
     Find the row in the DataFrame that is closest to the current time in the future.
     """
     future_times = df_sorted[df_sorted['datetime'] >= current_datetime_pd]
-    return future_times.iloc[offset] if not future_times.empty else None
-    if not future_times.empty:
-        closest_future_time_row = future_times.iloc[offset]
-    else:
-        closest_future_time_row = None
-    return closest_future_time_row
+    if not future_times.empty and offset < len(future_times):
+        return future_times.iloc[offset]
+    return None
 
 # function to find the next row in df_sorted that starts a new group cycle in the future
 def find_prepare_for_mission_row(df_sorted, current_datetime_pd):
@@ -278,18 +273,6 @@ def find_past_time_row(df_sorted, current_datetime_pd):
     """
     past_times = df_sorted[df_sorted['datetime'] < current_datetime_pd]
     return past_times.iloc[-1] if not past_times.empty else None
-    if not past_times.empty:
-        closest_past_time_row = past_times.iloc[-1]
-    else:
-        closest_past_time_row = None
-    return closest_past_time_row
-
-def play(audio_file_path):
-    """
-    Play an audio file using mplayer.
-    """
-    print(f"Playing {audio_file_path}")
-    subprocess.call(["mplayer", audio_file_path])
 
 def set_alarm(seconds, sound_filename, c_phase, next_time, n_phase):
     """
@@ -316,6 +299,10 @@ if __name__ == "__main__":
     server_ip = get_local_ip()
     print("Server IP: ", server_ip)
 
+    if len(sys.argv) < 2:
+        print("Usage: [ python3 ] roboclock.py timefile.csv")
+        sys.exit(1)
+
     threading.Thread(target=lambda: app.run(host=host_name, port=port, debug=True, use_reloader=False)).start()
 
     pd.set_option('display.max_rows', None)
@@ -323,12 +310,6 @@ if __name__ == "__main__":
 
     current_datetime_pd = pd.Timestamp.now()
     df_sorted = read_csv_to_df(sys.argv[1], current_datetime_pd)
-
-    if len(sys.argv) < 2:
-        print("Usage: [ python3 ] roboclock.py timefile.csv")
-        sys.exit(1)
-    # Die lokale Audiowiedergabe beim Start wurde entfernt
-    # play("sounds/%s" % ("gong.mp3",))
 
     while True:
         current_datetime_pd = pd.Timestamp.now()
