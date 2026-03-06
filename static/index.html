@@ -141,7 +141,7 @@
                         // Render phase boxes
                         const phaseBoxes = response.phase_boxes || [];
                         const phaseBoxesContainer = document.getElementById('phase_boxes');
-                        if (phaseBoxes.length > 1) {
+                        if (phaseBoxes.length > 0) {
                             phaseBoxesContainer.style.display = 'flex';
                             phaseBoxesContainer.innerHTML = phaseBoxes.map(box => {
                                 const dur = box.duration_min ? `<div class="duration">${box.duration_min} min</div>` : '';
