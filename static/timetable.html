@@ -31,10 +31,18 @@
             font-weight: bold;
             font-size: 1.1em;
         }
+        .day-header td {
+            background-color: #336;
+            color: #fff;
+            font-weight: bold;
+            font-size: 1.1em;
+            padding: 10px 12px;
+        }
     </style>
 </head>
 <body>
     <h1>Timetable</h1>
+    <a href="/" style="position:fixed;bottom:10px;right:16px;font-size:0.9em;color:#888;text-decoration:none;">← Countdown</a>
     <table>
         <thead>
             <tr>
@@ -49,6 +57,19 @@
         </tbody>
     </table>
     <script>
+        function formatDate(isoStr) {
+            if (!isoStr) return '';
+            var d = new Date(isoStr);
+            var today = new Date();
+            today.setHours(0,0,0,0);
+            var tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            var dateStr = d.toLocaleDateString('de-DE', {weekday: 'long', year: 'numeric', month: '2-digit', day: '2-digit'});
+            if (d.getTime() === today.getTime()) return dateStr + '  (Today)';
+            if (d.getTime() === tomorrow.getTime()) return dateStr + '  (Tomorrow)';
+            return dateStr;
+        }
+
         function fetchData() {
             var xhr = new XMLHttpRequest();
             xhr.open('GET', '/get_data', true);
@@ -60,8 +81,21 @@
                             if (Array.isArray(data)) {
                                 var tableBody = document.getElementById('data-table-body');
                                 tableBody.innerHTML = '';
+                                var lastDate = null;
 
                                 data.forEach(function(row) {
+                                    // Insert day header when date changes
+                                    if (row.date && row.date !== lastDate) {
+                                        lastDate = row.date;
+                                        var headerTr = document.createElement('tr');
+                                        headerTr.classList.add('day-header');
+                                        var headerTd = document.createElement('td');
+                                        headerTd.colSpan = 5;
+                                        headerTd.textContent = formatDate(row.date);
+                                        headerTr.appendChild(headerTd);
+                                        tableBody.appendChild(headerTr);
+                                    }
+
                                     var tr = document.createElement('tr');
                                     if (row.current) {
                                         tr.classList.add('current-row');
