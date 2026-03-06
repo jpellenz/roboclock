@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Data Monitor</title>
+    <title>Timetable</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -13,36 +13,39 @@
             border-collapse: collapse;
         }
         th, td {
-            padding: 8px;
+            padding: 8px 12px;
             text-align: left;
             border-bottom: 1px solid #ddd;
         }
         th {
             background-color: #f4f4f4;
+            position: sticky;
+            top: 0;
         }
         .current-row {
-            background-color: #ffeb3b;
+            background-color: #ffd600;
             font-weight: bold;
         }
-
+        .group-header {
+            background-color: #e0e0e0;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
     </style>
 </head>
 <body>
-    <h1>Data Monitor</h1>
+    <h1>Timetable</h1>
     <table>
         <thead>
             <tr>
-                <th>Index</th>
-                <th>Date</th>
-                <th>Hour</th>
-                <th>Minute</th>
-                <th>Second</th>
+                <th>Time</th>
+                <th>Group</th>
+                <th>Slot</th>
                 <th>Phase</th>
-                <th>Filename</th>
+                <th>Duration</th>
             </tr>
         </thead>
         <tbody id="data-table-body">
-            <!-- Data rows will be inserted here -->
         </tbody>
     </table>
     <script>
@@ -56,60 +59,46 @@
                             var data = JSON.parse(xhr.responseText);
                             if (Array.isArray(data)) {
                                 var tableBody = document.getElementById('data-table-body');
-                                tableBody.innerHTML = ''; // Clear existing rows
+                                tableBody.innerHTML = '';
 
-                                data.forEach(function(row, index) {
+                                data.forEach(function(row) {
                                     var tr = document.createElement('tr');
                                     if (row.current) {
                                         tr.classList.add('current-row');
                                     }
 
-                                    var indexTd = document.createElement('td');
-                                    indexTd.textContent = index;
-                                    tr.appendChild(indexTd);
+                                    var timeTd = document.createElement('td');
+                                    timeTd.textContent = row.hour + ':' + String(row.minute).padStart(2, '0');
+                                    tr.appendChild(timeTd);
 
+                                    var groupTd = document.createElement('td');
+                                    groupTd.textContent = row.group || '';
+                                    tr.appendChild(groupTd);
 
-                                    var dateTd = document.createElement('td');
-                                    dateTd.textContent = row.datetime;
-                                    tr.appendChild(dateTd);
-
-                                    var hourTd = document.createElement('td');
-                                    hourTd.textContent = row.hour;
-                                    tr.appendChild(hourTd);
-
-                                    var minuteTd = document.createElement('td');
-                                    minuteTd.textContent = row.minute;
-                                    tr.appendChild(minuteTd);
-
-                                    var secondTd = document.createElement('td');
-                                    secondTd.textContent = row.second;
-                                    tr.appendChild(secondTd);
+                                    var slotTd = document.createElement('td');
+                                    slotTd.textContent = row.slot_index != null ? row.slot_index + 1 : '';
+                                    tr.appendChild(slotTd);
 
                                     var phaseTd = document.createElement('td');
                                     phaseTd.textContent = row.phase;
                                     tr.appendChild(phaseTd);
 
-                                    var filenameTd = document.createElement('td');
-                                    filenameTd.textContent = row.filename;
-                                    tr.appendChild(filenameTd);
+                                    var durationTd = document.createElement('td');
+                                    durationTd.textContent = row.duration_min ? row.duration_min + ' min' : '';
+                                    tr.appendChild(durationTd);
 
                                     tableBody.appendChild(tr);
                                 });
-                            } else {
-                                console.error('Data is not an array:', data);
                             }
                         } catch (e) {
                             console.error('Error parsing JSON:', e);
                         }
-                    } else {
-                        console.error('Request failed with status:', xhr.status);
                     }
                 }
             };
             xhr.send();
         }
 
-        // Fetch data every 5 seconds
         setInterval(fetchData, 5000);
         window.onload = fetchData;
     </script>

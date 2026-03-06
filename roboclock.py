@@ -67,11 +67,21 @@ def get_data():
     if df_sorted is None or df_sorted.empty:
         return jsonify([])  # Return an empty list if df_sorted is not initialized
     current_time = pd.Timestamp.now()
-    data = df_sorted.to_dict(orient='records')
     past_time_row = find_past_time_row(df_sorted, current_time)
-    # Mark the current row
-    for row in data:
-        row['current'] = past_time_row is not None and row['datetime'] == past_time_row['datetime']
+    data = []
+    for _, row in df_sorted.iterrows():
+        data.append({
+            'phase': row['phase'],
+            'group': row['group'] if pd.notna(row.get('group', '')) else '',
+            'datetime': row['datetime'].isoformat() if pd.notna(row['datetime']) else None,
+            'date': row['date'].isoformat() if pd.notna(row.get('date')) else None,
+            'hour': int(row['hour']),
+            'minute': int(row['minute']),
+            'slot_index': int(row['slot_index']),
+            'duration_min': int(row['duration_min']) if pd.notna(row.get('duration_min', float('nan'))) else None,
+            'filename': row['filename'] if pd.notna(row.get('filename', '')) else None,
+            'current': past_time_row is not None and row['datetime'] == past_time_row['datetime'],
+        })
 
     return jsonify(data)
 
