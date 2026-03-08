@@ -36,7 +36,7 @@
             height: 150px;
         }
         h1 {
-            font-size: 4em;
+            font-size: 6em;
             margin-bottom: 20px;
         }
         #countdown {
@@ -101,6 +101,7 @@
         let currentAudioFile = null;
         let audioElement = null;
         let lastPhase = null;
+        let hasPlayedStartupGong = false;
 
         function startCountdown() {
             // Audio-Element erstellen
@@ -111,6 +112,14 @@
                 xhr.open('GET', '/get_countdown', true);
                 xhr.onload = function () {
                     if (xhr.status === 200) {
+                        // Beim ersten erfolgreichen Kontakt zum Server einen Gong abspielen
+                        if (!hasPlayedStartupGong) {
+                            hasPlayedStartupGong = true;
+                            const startupGong = new Audio('/sounds/gong.mp3');
+                            startupGong.play().catch(e => {
+                                console.log('Startup-Gong konnte nicht abgespielt werden:', e);
+                            });
+                        }
                         const response = JSON.parse(xhr.responseText);
                         const countdownSeconds = response.countdown_seconds;
                         const currentPhase = response.current_phase;
@@ -216,10 +225,17 @@
                     });
                 };
                 
-                // Hauptaudiodatei abspielen
+                // Hauptaudiodatei abspielen (zweimal hintereinander)
+                let mainPlayCount = 0;
                 const playMainAudio = function() {
                     audioElement = new Audio();
                     audioElement.src = `/sounds/${filename}`;
+                    audioElement.onended = function() {
+                        mainPlayCount++;
+                        if (mainPlayCount < 2) {
+                            setTimeout(playMainAudio, 1000);
+                        }
+                    };
                     audioElement.play().catch(e => {
                         console.log('Automatisches Abspielen fehlgeschlagen. Benutzerinteraktion erforderlich:', e);
                         document.getElementById('play_audio_button').style.display = 'block';

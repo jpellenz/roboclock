@@ -13,6 +13,7 @@ rsync -avz \
   --exclude 'venvnsource' \
   --exclude '__pycache__' \
   --exclude '.DS_Store' \
+  --exclude 'current.csv' \
   /Users/pellenz/proj/roboclock/ \
   "$PI:$REMOTE_DIR/"
 
