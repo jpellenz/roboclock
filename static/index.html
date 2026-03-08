@@ -98,10 +98,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
         let qrcode;
-        let currentAudioFile = null;
+        let currentAudioFile = sessionStorage.getItem('currentAudioFile') || null;
         let audioElement = null;
-        let lastPhase = null;
-        let hasPlayedStartupGong = false;
+        let lastPhase = sessionStorage.getItem('lastPhase') || null;
+        let hasPlayedStartupGong = sessionStorage.getItem('hasPlayedStartupGong') === 'true';
 
         function startCountdown() {
             // Audio-Element erstellen
@@ -115,6 +115,7 @@
                         // Beim ersten erfolgreichen Kontakt zum Server einen Gong abspielen
                         if (!hasPlayedStartupGong) {
                             hasPlayedStartupGong = true;
+                            sessionStorage.setItem('hasPlayedStartupGong', 'true');
                             const startupGong = new Audio('/sounds/gong.mp3');
                             startupGong.play().catch(e => {
                                 console.log('Startup-Gong konnte nicht abgespielt werden:', e);
@@ -181,6 +182,7 @@
                         // Wenn sich die Phase geändert hat, Audio aktualisieren
                         if (lastPhase !== currentPhase) {
                             lastPhase = currentPhase;
+                            sessionStorage.setItem('lastPhase', currentPhase);
                             checkCurrentAudio();
                         }
                     }
@@ -199,6 +201,7 @@
                         // Nur abspielen, wenn eine Audiodatei verfügbar ist und sie sich von der aktuellen unterscheidet
                         if (audioFile && audioFile !== currentAudioFile) {
                             currentAudioFile = audioFile;
+                            sessionStorage.setItem('currentAudioFile', audioFile);
                             playAudio(audioFile);
                         }
                     }

@@ -14,6 +14,7 @@ rsync -avz \
   --exclude '__pycache__' \
   --exclude '.DS_Store' \
   --exclude 'current.csv' \
+  --exclude '2026-03-11_prelim.csv' \
   /Users/pellenz/proj/roboclock/ \
   "$PI:$REMOTE_DIR/"
 
